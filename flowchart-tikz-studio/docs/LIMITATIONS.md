@@ -91,6 +91,47 @@ overlap resolves identically. The one exception is `drop shadow`, which is drawn
 as part of its own object rather than as a separate layer, so a shadow cannot be
 made to fall behind an object that was drawn earlier.
 
+## Import
+
+The import converts everything the editor can represent exactly, and reports
+the rest. What cannot be exact:
+
+- **Raster images** are *reconstructed*, not traced. Shape types, positions,
+  text and connections are usually right, but a character can be misread or a
+  faint line missed. Low-confidence text is flagged in the report, and the
+  *Overlay*/*Difference* comparison shows the source image exactly behind the
+  result.
+- **The offline recogniser** is built for clean digital diagrams. It reads
+  English text only; it does not handle hand drawings, photographs, rotated
+  shapes, shapes that overlap or touch each other, curved connectors (they
+  become polylines) or connectors that cross; shadows and gradients are not
+  measured. Symbols outside its template set keep their exact outline as a
+  polygon. Page-level text that was white on a dark page is recoloured to the
+  page colour so it stays visible (the original colour is kept as metadata).
+  For pictures like these, expect to tidy the result by hand.
+- **Styles the model has no slot for** — custom dash patterns, diagonal or
+  multi-stop gradients, hollow circle/diamond arrowheads, ER and other
+  specialised arrowheads, per-run rich text inside one label, label
+  background colours on shapes — are drawn with the nearest native equivalent;
+  the exact source value is kept as metadata.
+- **Nested groups** flatten into their outermost group, and connectors cannot
+  be group members (they follow the grouped shapes they connect).
+- **Connector attachment** snaps to the nearest named connection point, so an
+  off-centre draw.io exit point moves to the middle of its side. Routes the
+  native router cannot reproduce are kept as waypoints, which stay fixed when
+  shapes move (as with any connector that has waypoints).
+- **Curves** become the model's single symmetric curve; asymmetric or
+  multi-segment curves are approximated.
+- **Embedded images** (a logo in a draw.io file or SVG) become a labelled
+  placeholder frame; small inline images are kept as metadata. External files
+  are never fetched.
+- **draw.io**: labels positioned outside their shape become separate text
+  objects; a swimlane's header colour and collapse state are metadata only;
+  hidden layers import visible; only one page is imported per file.
+- **SVG**: clip paths, masks, filters other than drop shadows, and CSS
+  transforms are ignored (reported); pattern fills become a flat colour;
+  HTML inside `foreignObject` becomes plain text.
+
 ## What is not implemented
 
 - **TikZ import (code → canvas).** The architecture is ready for it — the model

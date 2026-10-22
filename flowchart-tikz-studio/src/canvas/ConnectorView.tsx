@@ -122,12 +122,15 @@ interface Props {
   diagram: Diagram;
   edge: Edge;
   selected: boolean;
+  /** The pointer is over this connector. Purely visual. */
+  hovered?: boolean;
 }
 
 export const ConnectorView = memo(function ConnectorView({
   diagram,
   edge,
   selected,
+  hovered,
 }: Props) {
   if (!edge || !edge.waypoints) return null;
   const route: Route | null = routeEdge(diagram, edge);
@@ -145,9 +148,15 @@ export const ConnectorView = memo(function ConnectorView({
 
   return (
     <g data-object-id={edge.id} opacity={edge.opacity}>
-      {/* Invisible fat stroke: makes thin connectors comfortable to click. */}
+      {/*
+        Invisible fat stroke: makes thin connectors comfortable to click.
+        Marked data-ui as well as data-hit so the SVG exporter strips it -
+        without that it shipped in every exported file as a 12 px transparent
+        path per connector.
+      */}
       <path
         data-hit="1"
+        data-ui="1"
         d={d}
         fill="none"
         stroke="transparent"
@@ -216,14 +225,15 @@ export const ConnectorView = memo(function ConnectorView({
         </g>
       )}
 
-      {selected && (
+      {(selected || hovered) && (
         <path
           data-ui="1"
           d={d}
           fill="none"
           stroke="var(--accent)"
           strokeWidth={Math.max(edge.strokeWidth + 3, 4)}
-          strokeOpacity={0.25}
+          strokeOpacity={selected ? 0.25 : 0.16}
+          strokeDasharray={selected ? undefined : '6 4'}
           strokeLinecap="round"
         />
       )}

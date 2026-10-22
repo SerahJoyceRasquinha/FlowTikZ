@@ -1,0 +1,250 @@
+{
+  "canvas": {
+    "width": 480,
+    "height": 520
+  },
+  "background": {
+    "color": "#ffffff"
+  },
+  "objects": [
+    {
+      "id": "o1",
+      "shape": "terminator",
+      "x": 170,
+      "y": 30,
+      "w": 140,
+      "h": 50,
+      "z": 0,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#000000",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Start",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o2",
+      "shape": "rectangle",
+      "x": 150,
+      "y": 120,
+      "w": 180,
+      "h": 70,
+      "z": 1,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#000000",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Read input",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o3",
+      "shape": "diamond",
+      "x": 165,
+      "y": 240,
+      "w": 150,
+      "h": 100,
+      "z": 2,
+      "style": {
+        "fill": "#fff2cc",
+        "stroke": "#d6b656",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Valid?",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o4",
+      "shape": "terminator",
+      "x": 170,
+      "y": 410,
+      "w": 140,
+      "h": 50,
+      "z": 3,
+      "style": {
+        "fill": "#d5e8d4",
+        "stroke": "#82b366",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "End",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "c1",
+      "source": {
+        "objectId": "o1"
+      },
+      "target": {
+        "objectId": "o2"
+      },
+      "points": [
+        {
+          "x": 240,
+          "y": 80
+        },
+        {
+          "x": 240,
+          "y": 120
+        }
+      ],
+      "routing": "straight",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 4,
+      "confidence": 0.95
+    },
+    {
+      "id": "c2",
+      "source": {
+        "objectId": "o2"
+      },
+      "target": {
+        "objectId": "o3"
+      },
+      "points": [
+        {
+          "x": 240,
+          "y": 190
+        },
+        {
+          "x": 240,
+          "y": 240
+        }
+      ],
+      "routing": "straight",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 5,
+      "confidence": 0.95
+    },
+    {
+      "id": "c3",
+      "source": {
+        "objectId": "o3"
+      },
+      "target": {
+        "objectId": "o4"
+      },
+      "points": [
+        {
+          "x": 240,
+          "y": 340
+        },
+        {
+          "x": 240,
+          "y": 410
+        }
+      ],
+      "routing": "straight",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 6,
+      "confidence": 0.95,
+      "label": {
+        "text": "Yes",
+        "position": 0.5,
+        "fontSize": 12,
+        "color": "#000000",
+        "background": true,
+        "confidence": 0.97
+      }
+    },
+    {
+      "id": "c4",
+      "source": {
+        "objectId": "o3"
+      },
+      "target": {
+        "objectId": "o2"
+      },
+      "points": [
+        {
+          "x": 315,
+          "y": 290
+        },
+        {
+          "x": 390,
+          "y": 290
+        },
+        {
+          "x": 390,
+          "y": 155
+        },
+        {
+          "x": 330,
+          "y": 155
+        }
+      ],
+      "routing": "orthogonal",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 7,
+      "confidence": 0.95,
+      "label": {
+        "text": "No",
+        "position": 0.1,
+        "fontSize": 12,
+        "color": "#000000",
+        "background": true,
+        "confidence": 0.97
+      }
+    }
+  ],
+  "groups": []
+}

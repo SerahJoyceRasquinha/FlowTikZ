@@ -1,0 +1,127 @@
+{
+  "canvas": {
+    "width": 360,
+    "height": 260
+  },
+  "objects": [
+    {
+      "id": "o1",
+      "shape": "rectangle",
+      "x": 30,
+      "y": 40,
+      "w": 120,
+      "h": 70,
+      "z": 0,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#000000",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "White A",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o2",
+      "shape": "rectangle",
+      "x": 210,
+      "y": 40,
+      "w": 120,
+      "h": 70,
+      "z": 1,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#000000",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "White B",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o3",
+      "shape": "rectangle",
+      "x": 120,
+      "y": 160,
+      "w": 120,
+      "h": 60,
+      "z": 2,
+      "style": {
+        "fill": "#1f2933",
+        "stroke": "#000000",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Dark",
+        "fontSize": 14,
+        "color": "#ffffff",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "ghost",
+      "shape": "rectangle",
+      "x": 250,
+      "y": 170,
+      "w": 80,
+      "h": 60,
+      "z": 3,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "none",
+        "strokeWidth": 0
+      },
+      "confidence": 0.97
+    }
+  ],
+  "connectors": [
+    {
+      "id": "c1",
+      "source": {
+        "objectId": "o1"
+      },
+      "target": {
+        "objectId": "o2"
+      },
+      "points": [
+        {
+          "x": 150,
+          "y": 75
+        },
+        {
+          "x": 210,
+          "y": 75
+        }
+      ],
+      "routing": "straight",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 4,
+      "confidence": 0.95
+    }
+  ],
+  "groups": []
+}

@@ -26,6 +26,7 @@ import {
   SnapGuide,
 } from '../model/diagram';
 import type { OutputMode } from '../latex/generator';
+import { remapDiagramIds } from '../import/conversion/ids';
 
 export type Tool = 'select' | 'pan' | 'connect' | 'text' | 'shape';
 
@@ -59,6 +60,14 @@ export interface EditorState {
   editingEdgeId: string | null;
   draft: DraftConnection | null;
   guides: SnapGuide[];
+  /**
+   * True while the drawing board owns keyboard focus.
+   *
+   * Transient UI state, deliberately outside the diagram: it is never
+   * committed, never snapshotted, never saved, so focusing the canvas cannot
+   * create an undo step or change a byte of the generated LaTeX.
+   */
+  boardFocused: boolean;
   past: Diagram[];
   future: Diagram[];
   clipboard: Clipboard | null;
@@ -81,6 +90,16 @@ export interface EditorState {
 
   /* -------- document -------- */
   loadDocument: (d: Diagram, opts?: { markSaved?: boolean }) => void;
+  /**
+   * Commit an imported diagram. `replace` and `insert` are a single undoable
+   * step; `new` opens it as a fresh document (with a fresh history). Ids are
+   * re-allocated from the editor's counters so they never collide. Returns
+   * the new object ids and the translation applied to the incoming content.
+   */
+  applyImport: (
+    incoming: Diagram,
+    mode: 'replace' | 'insert' | 'new',
+  ) => { ids: string[]; offset: Point; idMap: Map<string, string> };
   newDocument: () => void;
   renameDocument: (name: string) => void;
   markSaved: () => void;
@@ -100,6 +119,7 @@ export interface EditorState {
   resetZoom: () => void;
   fitToView: (size: { width: number; height: number }) => void;
   setGuides: (g: SnapGuide[]) => void;
+  setBoardFocused: (v: boolean) => void;
 
   /* -------- editing -------- */
   addNode: (kind: string, at: Point) => string;
@@ -155,6 +175,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   editingEdgeId: null,
   draft: null,
   guides: [],
+  boardFocused: false,
   past: [],
   future: [],
   clipboard: null,
@@ -257,6 +278,65 @@ export const useEditor = create<EditorState>((set, get) => ({
     });
   },
 
+  applyImport: (incoming, mode) => {
+    // Deep copy: the committed document must share nothing with the caller.
+    const { diagram, idMap } = remapDiagramIds(clone(incoming), (prefix) => nextId(prefix));
+    const ids = [...diagram.order];
+    let offset: Point = { x: 0, y: 0 };
+
+    if (mode === 'new') {
+      diagram.id = nextId('d');
+      get().loadDocument(diagram);
+      set({ selection: [] });
+      return { ids, offset, idMap };
+    }
+
+    if (mode === 'insert' && get().doc.order.length > 0) {
+      // Land to the right of what is already there, top-aligned, so nothing
+      // overlaps and the user's work is untouched.
+      const existing = diagramBounds(get().doc);
+      const b = diagramBounds(diagram);
+      offset = {
+        x: Math.round(existing.x + existing.w + 80 - b.x),
+        y: Math.round(existing.y - b.y),
+      };
+      const t = (p: Point) => ({ x: p.x + offset.x, y: p.y + offset.y });
+      for (const n of Object.values(diagram.nodes)) {
+        n.x += offset.x;
+        n.y += offset.y;
+      }
+      for (const e of Object.values(diagram.edges)) {
+        if (e.source.point) e.source.point = t(e.source.point);
+        if (e.target.point) e.target.point = t(e.target.point);
+        e.waypoints = e.waypoints.map(t);
+      }
+    }
+
+    get().commit((d) => {
+      if (mode === 'replace' || d.order.length === 0) {
+        d.nodes = diagram.nodes;
+        d.edges = diagram.edges;
+        d.groups = diagram.groups;
+        d.order = diagram.order;
+        d.name = diagram.name;
+        // The source background was removed on import.
+        d.settings.background = diagram.settings.background;
+      } else {
+        Object.assign(d.nodes, diagram.nodes);
+        Object.assign(d.edges, diagram.edges);
+        Object.assign(d.groups, diagram.groups);
+        d.order.push(...diagram.order);
+      }
+    });
+    set({
+      selection: mode === 'insert' ? ids : [],
+      editingNodeId: null,
+      editingEdgeId: null,
+      draft: null,
+    });
+    return { ids, offset, idMap };
+  },
+
   newDocument: () => {
     set({
       doc: emptyDiagram(),
@@ -341,6 +421,10 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
 
   setGuides: (g) => set({ guides: g }),
+
+  setBoardFocused: (v) => {
+    if (get().boardFocused !== v) set({ boardFocused: v });
+  },
 
   /* ------------------------------------------------------------- editing */
   addNode: (kind, at) => {

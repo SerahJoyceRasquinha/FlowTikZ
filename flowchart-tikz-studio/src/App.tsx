@@ -12,6 +12,10 @@ import { useEditor } from './state/store';
 import { readAutosave, scheduleAutosave } from './persistence/autosave';
 import { sampleDiagram } from './model/sample';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ImportDialog } from './components/ImportDialog';
+import { ImportProgress } from './components/ImportProgress';
+import { ImportReportDialog } from './components/ImportReportDialog';
+import { configureImport } from './import/controller';
 
 export default function App() {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -24,6 +28,13 @@ export default function App() {
   const loadDocument = useEditor((s) => s.loadDocument);
 
   useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true), canvasSize });
+
+  /* The import controller fits the view once an import lands. */
+  const canvasSizeRef = useRef(canvasSize);
+  canvasSizeRef.current = canvasSize;
+  useEffect(() => {
+    configureImport({ canvasSize: () => canvasSizeRef.current });
+  }, []);
 
   /* Autosave, so a stray refresh does not lose the diagram. */
   useEffect(() => {
@@ -64,6 +75,17 @@ export default function App() {
   const onSvgReady = useCallback((el: SVGSVGElement | null) => {
     svgRef.current = el;
   }, []);
+
+  /*
+   * Give the drawing board focus on arrival so the letter shortcuts are live
+   * from the first keystroke, and hand it back when the help dialog closes -
+   * otherwise the dialog's Close button would keep focus and swallow them.
+   */
+  useEffect(() => {
+    if (helpOpen) return;
+    const board = document.querySelector('.canvas-shell') as HTMLElement | null;
+    board?.focus?.({ preventScroll: true });
+  }, [helpOpen]);
 
   return (
     <div className="app">
@@ -134,6 +156,9 @@ export default function App() {
       />
 
       <StatusBar />
+      <ImportProgress />
+      <ImportDialog />
+      <ImportReportDialog />
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
     </div>
   );

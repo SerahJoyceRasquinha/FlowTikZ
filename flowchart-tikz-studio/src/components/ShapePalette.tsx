@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react';
 import { SHAPE_LIST, SHAPE_CATEGORIES, ShapeDef } from '../model/shapes';
 import { segsToSvgPath } from '../model/path';
+import {
+  shortcutAria,
+  shortcutForShape,
+  shortcutLabel,
+  shortcutSpoken,
+} from '../model/shortcuts';
 import { useEditor } from '../state/store';
 
 /** Miniature of a shape, drawn with the very same outline function. */
@@ -56,11 +62,15 @@ export function ShapePalette() {
     const q = filter.trim().toLowerCase();
     return SHAPE_CATEGORIES.map((cat) => ({
       cat,
-      shapes: SHAPE_LIST.filter(
-        (d) =>
-          d.category === cat &&
-          (!q || d.label.toLowerCase().includes(q) || d.id.includes(q)),
-      ),
+      shapes: SHAPE_LIST.filter((d) => {
+        if (d.category !== cat) return false;
+        if (!q) return true;
+        // A one-character query is read as "which shape is on this key?",
+        // which is the fastest way to learn the bindings.
+        const sc = shortcutForShape(d.id);
+        if (q.length === 1 && sc && sc.letter.toLowerCase() === q) return true;
+        return d.label.toLowerCase().includes(q) || d.id.includes(q);
+      }),
     })).filter((g) => g.shapes.length > 0);
   }, [filter]);
 
@@ -98,21 +108,33 @@ export function ShapePalette() {
             </button>
             {!collapsed[g.cat] && (
               <div className="palette-grid">
-                {g.shapes.map((def) => (
-                  <button
-                    key={def.id}
-                    className={`shape-btn${pendingShape === def.id ? ' on' : ''}`}
-                    title={`${def.label} — click to arm, double-click to place`}
-                    onClick={() => armShape(pendingShape === def.id ? null : def.id)}
-                    onDoubleClick={() => {
-                      armShape(null);
-                      placeCentre(def.id);
-                    }}
-                  >
-                    <ShapeThumb def={def} />
-                    <span>{def.label}</span>
-                  </button>
-                ))}
+                {g.shapes.map((def) => {
+                  const sc = shortcutForShape(def.id);
+                  const keyHint = sc ? ` — press ${shortcutSpoken(sc)}` : '';
+                  return (
+                    <button
+                      key={def.id}
+                      className={`shape-btn${pendingShape === def.id ? ' on' : ''}`}
+                      title={`${def.label}${keyHint}. Click to arm, double-click to place.`}
+                      aria-label={`${def.label}${keyHint}`}
+                      aria-keyshortcuts={sc ? shortcutAria(sc) : undefined}
+                      aria-pressed={pendingShape === def.id}
+                      onClick={() => armShape(pendingShape === def.id ? null : def.id)}
+                      onDoubleClick={() => {
+                        armShape(null);
+                        placeCentre(def.id);
+                      }}
+                    >
+                      {sc && (
+                        <span className="shape-key" aria-hidden="true">
+                          {shortcutLabel(sc)}
+                        </span>
+                      )}
+                      <ShapeThumb def={def} />
+                      <span className="shape-name">{def.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -121,7 +143,7 @@ export function ShapePalette() {
       <p className="palette-hint">
         {pendingShape
           ? 'Click the canvas to place it.'
-          : 'Click a symbol, then click the canvas.'}
+          : 'Click a symbol, or press its letter with the board focused.'}
       </p>
     </aside>
   );

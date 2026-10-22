@@ -24,9 +24,29 @@ can never leave the two representations disagreeing.
 
 The model is also free of anything environment-specific — no DOM nodes, no
 React, no pixels-of-the-current-viewport. That is what makes zoom, export, save,
-load and code generation all straightforward, and it is what would make a future
-TikZ *importer* tractable: it would only need to produce a `Diagram`, and every
-existing feature would work on the result.
+load and code generation all straightforward, and it is what makes importing
+tractable: an importer only has to produce a `Diagram`, and every existing
+feature works on the result.
+
+## Importing
+
+Every import path — raster images through the built-in offline recogniser
+(shape templates, connector tracing, Tesseract OCR), SVG, draw.io,
+Excalidraw, structured JSON — converges on one normalised intermediate
+representation (`src/import/ir/types.ts`) and then on one mapper
+(`src/import/conversion/diagramMapper.ts`) that builds the ordinary `Diagram`
+with the ordinary factories. There is no "imported object" type and no second
+model: the canvas and the TikZ generator are unaware that an object was
+imported. The pipeline runs in a Web Worker, and the result is committed
+through the store's normal undoable `commit`. Details, including security, are in
+[`IMPORT.md`](IMPORT.md).
+
+Three optional, backward-compatible model additions support it: `Node.path`
+(the outline of the `freeform` registry kind, normalised to the node's box, so
+an outline that matches no symbol keeps its exact geometry and still resizes),
+`Node.meta`/`Edge.meta` (provenance and verbatim source properties; read by
+nothing that renders or generates), and `settings.background = 'none'` (a
+transparent export).
 
 ## Module map
 
@@ -36,10 +56,13 @@ src/
 │   ├── types.ts            # Diagram, Node, Edge, styles, settings
 │   ├── geometry.ts         # Vector maths, rotation, bounds, Bezier helpers
 │   ├── path.ts             # The M/L/C/Z path language + SVG serialiser
-│   ├── shapes.ts           # Shape registry: 29 definitions
+│   ├── shapes.ts           # Shape registry: 29 palette symbols + `freeform`
+│   ├── meta.ts             # Defensive readers for imported outlines/metadata
 │   ├── routing.ts          # Connector geometry, ports, anchors
+│   ├── hittest.ts          # Point-in-shape and point-near-connector picking
 │   ├── diagram.ts          # Ordering, alignment, deletion, snapping, bounds
 │   ├── defaults.ts         # Factory functions and default styles
+│   ├── shortcuts.ts        # Keyboard letter per shape; one table, read by all
 │   ├── ids.ts              # Stable id allocation
 │   └── sample.ts           # The worked example
 ├── latex/                  # Model → TikZ. Also pure.
@@ -63,11 +86,13 @@ src/
 │   ├── Toolbar.tsx  ShapePalette.tsx  PropertyInspector.tsx
 │   ├── CodePanel.tsx  ColorField.tsx  SplitPane.tsx
 │   ├── HelpDialog.tsx  StatusBar.tsx  EmptyState.tsx  ErrorBoundary.tsx
-├── state/store.ts          # Zustand store: doc, selection, view, history
+├── state/store.ts          # Zustand store: doc, selection, view, history, applyImport
+├── state/importStore.ts    # Transient import session, report, reference image
+├── import/                 # Import pipeline -> IR -> Diagram (see IMPORT.md)
 ├── persistence/            # schema.ts (save format), autosave.ts (recovery)
 ├── export/                 # svg.ts, raster.ts, pdf.ts, file.ts
 ├── hooks/useKeyboardShortcuts.ts
-└── tests/                  # 178 tests, including latexLint.ts
+└── tests/                  # 417 tests, including latexLint.ts and import fixtures
 ```
 
 Dependencies point one way: `components` and `canvas` may import `model`,
@@ -172,8 +197,45 @@ must not queue a render per event:
 none → move | resize | rotate | marquee | pan | connect → none
 ```
 
-Editor chrome (handles, ports, guides, marquee, grid) is marked `data-ui` so the
-SVG exporter can strip it and ship exactly the diagram.
+Editor chrome (handles, ports, guides, marquee, grid, the hover outline and the
+invisible hit areas) is marked `data-ui` so the SVG exporter can strip it and
+ship exactly the diagram.
+
+### Picking
+
+Shapes are picked from their own outline, not from a bounding box. The same
+outline function that feeds the renderer and the TikZ emitter is flattened and
+tested for containment in `model/hittest.ts`, so the pointer agrees with what
+is on screen: the whole interior of a diamond responds, and the empty corners
+of its box do not. Symbols with nothing to fill — a text label, an open
+annotation bracket — use their declared box instead, which is what a user means
+by "the label".
+
+Priority is fixed and stated in one place: being inside a shape beats a
+connector drawn across it; a connector painted in front wins only in the few
+pixels of forgiveness margin outside a shape, where aiming at the line is the
+only thing the pointer can have meant. Resize and connection handles are
+consulted before either, because they are explicit targets.
+
+### Two handle systems
+
+Resize handles are squares on the selection boundary. Connection points are
+circles floating `PORT_GAP` screen pixels *outside* the outline, in their own
+colour, with their own cursor. The offset is presentation only — a connector
+still attaches at `portAnchor`, on the outline, which is what the router and
+the emitter read — but it is what makes the two systems impossible to confuse
+or to hit by accident. There are tests that fail if any handle and any
+connection point come within `PORT_GAP − HANDLE_SIZE/2` of each other.
+
+### Dragging and snapping
+
+A drag is held as the point it started from plus every shape's starting
+position, and each frame moves the selection to an absolute offset. That is not
+incidental: snapping applied to each incremental delta is self-cancelling,
+because a shape already on the grid answers a 3 px nudge with a 3 px correction
+straight back, and a slow drag pins the shape in place. Measuring from the
+gesture's origin lets the snap decide where the shape *lands* without ever
+deciding whether it moves.
 
 ## History
 
@@ -191,6 +253,19 @@ to leave the model in a state the renderer or generator has never seen.
 
 - The store holds one plain object; components subscribe to the slices they use.
 - Shape and connector views are `memo`ised.
+- Pointer moves are coalesced into animation frames. A precise mouse or pen
+  reports far faster than the display refreshes, and each event used to clone
+  the document; now at most one model write happens per painted frame, and
+  `pointerup` flushes whatever the last frame has not applied so a gesture ends
+  exactly where the pointer did.
+- Hover lives in a ref and reaches React only when the hovered object actually
+  changes. Crossing one shape is hundreds of events and no renders. Measured on
+  a 400-shape, 300-connector diagram, 400 hover events cost 11 ms rather than
+  104 ms, and the cost no longer grows with the size of the diagram.
+- `getBoundingClientRect` is cached per gesture instead of being read — and so
+  forcing layout — on every move.
+- Alignment guides are recomputed every frame but only written to the store
+  when they change, so holding an alignment does not re-render the canvas.
 - The code panel reads the document through `useDeferredValue`, so a drag stays
   at 60 fps while the LaTeX catches up on the next idle frame — the panel shows
   "updating" for those few milliseconds rather than blocking the gesture.
@@ -212,6 +287,7 @@ Every piece of user text passes through `latex/escape.ts` before entering the
 output, so no diagram content can inject a control sequence. Nothing is
 `eval`ed, no LaTeX is executed, and opened files are parsed defensively — a
 hand-edited or truncated save file yields as much of the diagram as can be read
-plus warnings, never a crash. The app is entirely client-side: no diagram data
-leaves the browser, and autosave writes only geometry and styling to
-`localStorage`.
+plus warnings, never a crash. Imported files are parsed as data by a DOM-free,
+entity-safe parser and are never inserted into the page. The app is
+entirely client-side: nothing, including an image being imported, leaves
+the browser, and there are no API keys. Autosave writes only geometry and styling to `localStorage`.

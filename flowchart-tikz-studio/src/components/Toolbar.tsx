@@ -6,6 +6,9 @@ import { buildSvgString } from '../export/svg';
 import { exportPng } from '../export/raster';
 import { exportPdf } from '../export/pdf';
 import { clearAutosave } from '../persistence/autosave';
+import { requestImport } from '../import/controller';
+import { IMPORT_ACCEPT, SUPPORTED_SUMMARY } from '../import/detector';
+import { useImport } from '../state/importStore';
 
 interface Props {
   svgRef: React.MutableRefObject<SVGSVGElement | null>;
@@ -24,6 +27,8 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
 export function Toolbar({ svgRef, onShowHelp, canvasSize }: Props) {
   const s = useEditor();
   const fileInput = useRef<HTMLInputElement>(null);
+  const importInput = useRef<HTMLInputElement>(null);
+  const importing = useImport((st) => st.session?.status === 'running');
   const [exportOpen, setExportOpen] = useState(false);
 
   const hasSelection = s.selection.length > 0;
@@ -103,7 +108,7 @@ export function Toolbar({ svgRef, onShowHelp, canvasSize }: Props) {
         <button
           className={`btn tool${s.pendingShape === 'text' ? ' on' : ''}`}
           onClick={() => s.armShape('text')}
-          title="Text label (T)"
+          title="Text label (T, with the drawing board focused)"
         >
           Text
         </button>
@@ -239,8 +244,21 @@ export function Toolbar({ svgRef, onShowHelp, canvasSize }: Props) {
         >
           New
         </button>
-        <button className="btn" onClick={() => fileInput.current?.click()}>
+        <button
+          className="btn"
+          onClick={() => fileInput.current?.click()}
+          title="Open a diagram saved by this app (.json)"
+        >
           Open
+        </button>
+        <button
+          className={`btn${importing ? ' on' : ''}`}
+          onClick={() => importInput.current?.click()}
+          disabled={importing}
+          title={`Import an external diagram and convert it to editable shapes: ${SUPPORTED_SUMMARY}`}
+          data-action="import"
+        >
+          {importing ? 'Importing…' : 'Import'}
         </button>
         <button className="btn" onClick={saveJson} title="Save (Ctrl+S)">
           Save
@@ -273,6 +291,19 @@ export function Toolbar({ svgRef, onShowHelp, canvasSize }: Props) {
         </button>
       </Group>
 
+      <input
+        ref={importInput}
+        type="file"
+        accept={IMPORT_ACCEPT}
+        style={{ display: 'none' }}
+        aria-label="Import external diagram"
+        data-input="import"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) requestImport(file);
+          e.target.value = '';
+        }}
+      />
       <input
         ref={fileInput}
         type="file"

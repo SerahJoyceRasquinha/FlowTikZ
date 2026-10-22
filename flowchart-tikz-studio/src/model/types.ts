@@ -74,6 +74,49 @@ export interface ShapeStyle {
   shadingColor: string;
 }
 
+/**
+ * One path command in *normalised* local coordinates: every x is a fraction of
+ * the node's width and every y a fraction of its height (0..1, though control
+ * points may overshoot slightly). Normalising is what lets an imported outline
+ * resize with its box exactly as a built-in symbol does.
+ *
+ * Structurally identical to `Seg` in `model/path.ts`, repeated here so that the
+ * model's type module stays free of imports.
+ */
+export type NormalizedSeg =
+  | { c: 'M'; p: Point }
+  | { c: 'L'; p: Point }
+  | { c: 'C'; c1: Point; c2: Point; p: Point }
+  | { c: 'Z' };
+
+/** JSON-safe scalar kept verbatim from an imported source. */
+export type MetaValue = string | number | boolean;
+
+/**
+ * Provenance of an imported object.
+ *
+ * Purely informational: nothing in the renderer or the TikZ emitter reads it,
+ * so it can never make the canvas and the LaTeX disagree. It exists so that a
+ * source property with no exact equivalent in this model is kept rather than
+ * silently dropped.
+ */
+export interface ImportMeta {
+  /** Source format, e.g. "drawio", "svg", "image". */
+  format: string;
+  /** Identifier of the object in the source document. */
+  sourceId?: string;
+  /** Recognition confidence 0..1, for objects reconstructed from a picture. */
+  confidence?: number;
+  /** Source properties the model cannot represent exactly, verbatim. */
+  preserved?: Record<string, MetaValue>;
+  /** Human-readable notes about approximations made for this object. */
+  notes?: string[];
+}
+
+export interface ObjectMeta {
+  import?: ImportMeta;
+}
+
 export interface Node {
   id: string;
   kind: ShapeKind;
@@ -88,6 +131,13 @@ export interface Node {
   locked: boolean;
   z: number; // paint order; higher = in front
   groupId?: string;
+  /**
+   * Outline for the `freeform` shape kind, in normalised coordinates. Only
+   * read when `kind === 'freeform'`; every other kind derives its outline from
+   * the shape registry.
+   */
+  path?: NormalizedSeg[];
+  meta?: ObjectMeta;
 }
 
 /** Where a connector attaches. */
@@ -164,6 +214,7 @@ export interface Edge {
   cornerRadius: number;
   label?: EdgeLabel;
   z: number;
+  meta?: ObjectMeta;
 }
 
 export interface Group {
@@ -179,7 +230,11 @@ export interface DiagramSettings {
   showGrid: boolean;
   snapToGrid: boolean;
   snapToObjects: boolean;
-  /** Background of the exported canvas; the editor always paints white paper. */
+  /**
+   * Background of the exported canvas; the editor always paints white paper.
+   * A hex colour, or `'none'` for a transparent export (the default for
+   * imported diagrams, whose source background is removed on import).
+   */
   background: string;
 }
 

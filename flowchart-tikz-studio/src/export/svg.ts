@@ -1,6 +1,7 @@
 import type { Diagram } from '../model/types';
 import { diagramBounds } from '../model/diagram';
 import { round } from '../model/geometry';
+import { isTransparentBackground } from '../model/meta';
 
 /**
  * SVG export.
@@ -23,6 +24,7 @@ export function buildSvgString(source: SVGSVGElement, d: Diagram): string {
   const content = clone.querySelector('[data-layer="content"]');
   const inner = content ? content.innerHTML : clone.innerHTML;
 
+  const transparent = isTransparentBackground(d.settings.background);
   const bg = d.settings.background || '#ffffff';
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -33,10 +35,15 @@ export function buildSvgString(source: SVGSVGElement, d: Diagram): string {
       bounds.y - PADDING,
       2,
     )} ${round(width, 2)} ${round(height, 2)}">`,
-    `<rect x="${round(bounds.x - PADDING, 2)}" y="${round(
-      bounds.y - PADDING,
-      2,
-    )}" width="${round(width, 2)}" height="${round(height, 2)}" fill="${bg}"/>`,
+    // A transparent document ships no backdrop at all.
+    ...(transparent
+      ? []
+      : [
+          `<rect x="${round(bounds.x - PADDING, 2)}" y="${round(
+            bounds.y - PADDING,
+            2,
+          )}" width="${round(width, 2)}" height="${round(height, 2)}" fill="${bg}"/>`,
+        ]),
     `<g>${inner}</g>`,
     '</svg>',
   ].join('\n');

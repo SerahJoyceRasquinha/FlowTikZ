@@ -1,0 +1,438 @@
+{
+  "canvas": {
+    "width": 760,
+    "height": 620
+  },
+  "background": {
+    "color": "#eef1f5"
+  },
+  "objects": [
+    {
+      "id": "bg",
+      "shape": "rectangle",
+      "x": 0,
+      "y": 0,
+      "w": 760,
+      "h": 620,
+      "z": 0,
+      "style": {
+        "fill": "#eef1f5",
+        "stroke": "none",
+        "strokeWidth": 0
+      },
+      "confidence": 0.97
+    },
+    {
+      "id": "t1",
+      "shape": "text",
+      "x": 30,
+      "y": 18,
+      "w": 190,
+      "h": 28,
+      "z": 1,
+      "style": {
+        "fill": "none",
+        "stroke": "none",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Refund workflow",
+        "fontSize": 20,
+        "color": "#333333",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98,
+        "bold": true
+      }
+    },
+    {
+      "id": "o1",
+      "shape": "rectangle",
+      "x": 60,
+      "y": 80,
+      "w": 170,
+      "h": 60,
+      "z": 2,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#1f2933",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Refund request",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o2",
+      "shape": "diamond",
+      "x": 60,
+      "y": 200,
+      "w": 170,
+      "h": 110,
+      "z": 3,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#1f2933",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Refnd\nvalid?",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.55
+      }
+    },
+    {
+      "id": "o3",
+      "shape": "cylinder",
+      "x": 330,
+      "y": 205,
+      "w": 110,
+      "h": 100,
+      "z": 4,
+      "style": {
+        "fill": "#dae8fc",
+        "stroke": "#6c8ebf",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Orders",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o4",
+      "shape": "document",
+      "x": 560,
+      "y": 80,
+      "w": 150,
+      "h": 80,
+      "z": 5,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#1f2933",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Policy",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o5",
+      "shape": "rounded-rectangle",
+      "x": 300,
+      "y": 380,
+      "w": 170,
+      "h": 60,
+      "z": 6,
+      "style": {
+        "fill": "#d5e8d4",
+        "stroke": "#82b366",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Approve",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98,
+        "bold": true
+      }
+    },
+    {
+      "id": "o6",
+      "shape": "rectangle",
+      "x": 560,
+      "y": 380,
+      "w": 150,
+      "h": 60,
+      "z": 7,
+      "style": {
+        "fill": "#f8cecc",
+        "stroke": "#b85450",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Reject",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o7",
+      "shape": "parallelogram",
+      "x": 60,
+      "y": 490,
+      "w": 190,
+      "h": 60,
+      "z": 8,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#1f2933",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Notify customer",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "t2",
+      "shape": "text",
+      "x": 150,
+      "y": 348,
+      "w": 26,
+      "h": 16,
+      "z": 9,
+      "style": {
+        "fill": "none",
+        "stroke": "none",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Yes",
+        "fontSize": 12,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "c1",
+      "source": {
+        "objectId": "o1"
+      },
+      "target": {
+        "objectId": "o2"
+      },
+      "points": [
+        {
+          "x": 145,
+          "y": 140
+        },
+        {
+          "x": 145,
+          "y": 200
+        }
+      ],
+      "routing": "straight",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 10,
+      "confidence": 0.95
+    },
+    {
+      "id": "c2",
+      "source": {
+        "objectId": "o2"
+      },
+      "target": {
+        "objectId": "o3"
+      },
+      "points": [
+        {
+          "x": 230,
+          "y": 255
+        },
+        {
+          "x": 330,
+          "y": 255
+        }
+      ],
+      "routing": "straight",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "dashed"
+      },
+      "z": 11,
+      "confidence": 0.95
+    },
+    {
+      "id": "c3",
+      "source": {
+        "objectId": "o2"
+      },
+      "target": {
+        "objectId": "o5"
+      },
+      "points": [
+        {
+          "x": 145,
+          "y": 310
+        },
+        {
+          "x": 145,
+          "y": 410
+        },
+        {
+          "x": 300,
+          "y": 410
+        }
+      ],
+      "routing": "orthogonal",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 12,
+      "confidence": 0.95
+    },
+    {
+      "id": "c4",
+      "source": {
+        "objectId": "o5"
+      },
+      "target": {
+        "objectId": "o6"
+      },
+      "points": [
+        {
+          "x": 470,
+          "y": 410
+        },
+        {
+          "x": 560,
+          "y": 410
+        }
+      ],
+      "routing": "straight",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 13,
+      "confidence": 0.95
+    },
+    {
+      "id": "c5",
+      "source": {
+        "objectId": "o5"
+      },
+      "target": {
+        "objectId": "o7"
+      },
+      "points": [
+        {
+          "x": 385,
+          "y": 440
+        },
+        {
+          "x": 385,
+          "y": 520
+        },
+        {
+          "x": 237,
+          "y": 520
+        }
+      ],
+      "routing": "orthogonal",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 14,
+      "confidence": 0.95
+    },
+    {
+      "id": "c6",
+      "source": {
+        "objectId": "o4"
+      },
+      "target": {
+        "objectId": "o6"
+      },
+      "points": [
+        {
+          "x": 635,
+          "y": 160
+        },
+        {
+          "x": 635,
+          "y": 380
+        }
+      ],
+      "routing": "straight",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "dashed"
+      },
+      "z": 15,
+      "confidence": 0.95
+    }
+  ],
+  "groups": [
+    {
+      "id": "g1",
+      "memberIds": [
+        "o5",
+        "o6"
+      ],
+      "name": "Outcome"
+    }
+  ]
+}

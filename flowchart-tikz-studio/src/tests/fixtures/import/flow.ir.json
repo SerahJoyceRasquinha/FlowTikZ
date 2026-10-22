@@ -1,0 +1,152 @@
+{
+  "canvas": {
+    "width": 420,
+    "height": 360
+  },
+  "background": {
+    "color": "#fdf6e3"
+  },
+  "objects": [
+    {
+      "id": "o1",
+      "shape": "rectangle",
+      "x": 40,
+      "y": 40,
+      "w": 150,
+      "h": 60,
+      "z": 0,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#268bd2",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Collect",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o2",
+      "shape": "rectangle",
+      "x": 240,
+      "y": 40,
+      "w": 150,
+      "h": 60,
+      "z": 1,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#268bd2",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Clean",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    },
+    {
+      "id": "o3",
+      "shape": "ellipse",
+      "x": 140,
+      "y": 220,
+      "w": 150,
+      "h": 70,
+      "z": 2,
+      "style": {
+        "fill": "#eee8d5",
+        "stroke": "#859900",
+        "strokeWidth": 2
+      },
+      "confidence": 0.97,
+      "text": {
+        "content": "Report",
+        "fontSize": 14,
+        "color": "#000000",
+        "align": "center",
+        "valign": "middle",
+        "fontFamily": "DejaVu Sans",
+        "confidence": 0.98
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "c1",
+      "source": {
+        "objectId": "o1"
+      },
+      "target": {
+        "objectId": "o2"
+      },
+      "points": [
+        {
+          "x": 190,
+          "y": 70
+        },
+        {
+          "x": 240,
+          "y": 70
+        }
+      ],
+      "routing": "straight",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 3,
+      "confidence": 0.95
+    },
+    {
+      "id": "c2",
+      "source": {
+        "objectId": "o2"
+      },
+      "target": {
+        "objectId": "o3"
+      },
+      "points": [
+        {
+          "x": 315,
+          "y": 100
+        },
+        {
+          "x": 315,
+          "y": 160
+        },
+        {
+          "x": 250,
+          "y": 160
+        },
+        {
+          "x": 250,
+          "y": 225
+        }
+      ],
+      "routing": "orthogonal",
+      "arrowStart": "none",
+      "arrowEnd": "triangle",
+      "style": {
+        "stroke": "#000000",
+        "strokeWidth": 2,
+        "dash": "solid"
+      },
+      "z": 4,
+      "confidence": 0.95
+    }
+  ],
+  "groups": []
+}

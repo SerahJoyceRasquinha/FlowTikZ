@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="281px" height="391px" viewBox="-0.5 -0.5 281 391" style="background-color: rgb(255, 255, 255);">
+  <defs/>
+  <g>
+    <g data-cell-id="0"><g data-cell-id="1">
+      <g data-cell-id="a1">
+        <rect x="70" y="0" width="120" height="40" rx="20" ry="20" fill="rgb(255, 255, 255)" stroke="rgb(0, 0, 0)" pointer-events="all"/>
+        <g transform="translate(-0.5 -0.5)"><switch>
+          <foreignObject pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility" style="overflow: visible; text-align: left;"><div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; width: 118px; height: 1px; padding-top: 20px; margin-left: 71px;"><div style="box-sizing: border-box; font-size: 0px; text-align: center;"><div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: rgb(0, 0, 0);">Start</div></div></div></foreignObject>
+          <text x="130" y="24" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">Start</text>
+        </switch></g>
+      </g>
+      <g data-cell-id="e1">
+        <path d="M 130 40 L 130 73.63" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 130 78.88 L 126.5 71.88 L 130 73.63 L 133.5 71.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+      </g>
+      <g data-cell-id="a2">
+        <path d="M 130 80 L 190 120 L 130 160 L 70 120 Z" fill="#fff2cc" stroke="#d6b656" stroke-miterlimit="10" pointer-events="all"/>
+        <g transform="translate(-0.5 -0.5)"><switch>
+          <foreignObject pointer-events="none" width="100%" height="100%" style="overflow: visible;"><div xmlns="http://www.w3.org/1999/xhtml"><div><div>Valid?</div></div></div></foreignObject>
+          <text x="130" y="124" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">Valid?</text>
+        </switch></g>
+      </g>
+      <g data-cell-id="e2">
+        <path d="M 130 160 L 130 213.63" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 130 218.88 L 126.5 211.88 L 130 213.63 L 133.5 211.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <g transform="translate(-0.5 -0.5)"><switch><text x="141" y="193" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">Yes</text></switch></g>
+      </g>
+      <g data-cell-id="e3">
+        <path d="M 190 120 L 250 120 L 250 283.63" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-dasharray="3 3" pointer-events="stroke"/>
+        <path d="M 250 288.88 L 246.5 281.88 L 250 283.63 L 253.5 281.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <g transform="translate(-0.5 -0.5)"><switch><text x="221" y="113" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="11px" text-anchor="middle">No</text></switch></g>
+      </g>
+      <g data-cell-id="a3">
+        <rect x="70" y="220" width="120" height="60" fill="#dae8fc" stroke="#6c8ebf" pointer-events="all"/>
+        <g transform="translate(-0.5 -0.5)"><switch><text x="130" y="254" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">Process</text></switch></g>
+      </g>
+      <g data-cell-id="a4">
+        <path d="M 210 305 C 210 296.72 226.79 290 247.5 290 C 257.45 290 266.98 291.58 274.02 294.39 C 281.05 297.21 285 301.02 285 305 L 285 375 C 285 383.28 268.21 390 247.5 390 C 226.79 390 210 383.28 210 375 Z" fill="rgb(255, 255, 255)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <path d="M 285 305 C 285 313.28 268.21 320 247.5 320 C 226.79 320 210 313.28 210 305" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <g transform="translate(-0.5 -0.5)"><switch><text x="248" y="359" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">DB</text></switch></g>
+      </g>
+      <g data-cell-id="a5">
+        <rect x="0" y="330" width="160" height="50" fill="rgb(255, 255, 255)" stroke="rgb(0, 0, 0)" pointer-events="all"/>
+        <path d="M 16 330 L 16 380 M 144 330 L 144 380" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+        <g transform="translate(-0.5 -0.5)"><switch><text x="80" y="359" fill="rgb(0, 0, 0)" font-family="Helvetica" font-size="12px" text-anchor="middle">Subroutine</text></switch></g>
+      </g>
+      <g data-cell-id="e4">
+        <path d="M 130 280 L 130 300 L 80 300 L 80 323.63" fill="none" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="stroke"/>
+        <path d="M 80 328.88 L 76.5 321.88 L 80 323.63 L 83.5 321.88 Z" fill="rgb(0, 0, 0)" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" pointer-events="all"/>
+      </g>
+    </g></g>
+  </g>
+  <switch><g requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility"/><a transform="translate(0,-5)" xlink:href="https://www.drawio.com/doc/faq/svg-export-text-problems" target="_blank"><text text-anchor="middle" font-size="10px" x="50%" y="100%">Text is not SVG - cannot display</text></a></switch>
+</svg>

@@ -1,4 +1,4 @@
-import type { Point, Rect, PortId, Node } from './types';
+import type { Point, Rect, PortId, Node, NormalizedSeg } from './types';
 import {
   Seg,
   L,
@@ -673,10 +673,50 @@ const defs: ShapeDef[] = [
   },
 ];
 
+/* ------------------------------------------------------ imported outlines */
+
+/** Scale a normalised outline (fractions of the box) to a w x h box. */
+export function denormalizePath(path: NormalizedSeg[], w: number, h: number): Seg[] {
+  const t = (p: Point): Point => ({ x: p.x * w, y: p.y * h });
+  const out: Seg[] = [];
+  for (const s of path) {
+    if (!s || typeof s !== 'object') continue;
+    if (s.c === 'M' || s.c === 'L') out.push({ c: s.c, p: t(s.p) });
+    else if (s.c === 'C') out.push({ c: 'C', c1: t(s.c1), c2: t(s.c2), p: t(s.p) });
+    else if (s.c === 'Z') out.push(Z);
+  }
+  return out;
+}
+
+/**
+ * The outline of an imported object that matches no symbol in the palette.
+ *
+ * It is an ordinary registry entry: the renderer, hit testing, the resize
+ * handles, the connection points and the TikZ path emitter all consume it
+ * through the same `outline` function as every built-in shape, so an imported
+ * polygon behaves exactly like one drawn by hand. The geometry itself lives on
+ * the node (`Node.path`), normalised to the box, which is what lets it resize.
+ *
+ * It is deliberately not in `SHAPE_LIST`: it has no fixed outline to offer in
+ * the palette and no keyboard letter.
+ */
+export const FREEFORM_DEF: ShapeDef = {
+  id: 'freeform',
+  label: 'Imported outline',
+  category: 'Basic',
+  defaultSize: { w: 120, h: 80 },
+  outline: (w, h, n) =>
+    n?.path && n.path.length > 1 ? denormalizePath(n.path, w, h) : rect(0, 0, w, h),
+  textBox: (w, h) => inset(w, h, 8, 6),
+  ports: boxPorts,
+  note: 'Outline imported from another file. Resize and style it like any shape; TikZ receives the exact path.',
+};
+
 export const SHAPE_DEFS: Record<string, ShapeDef> = Object.fromEntries(
-  defs.map((d) => [d.id, d]),
+  [...defs, FREEFORM_DEF].map((d) => [d.id, d]),
 );
 
+/** Symbols offered in the palette, in palette order. */
 export const SHAPE_LIST = defs;
 
 export const SHAPE_CATEGORIES = Array.from(

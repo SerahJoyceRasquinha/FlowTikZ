@@ -9,10 +9,17 @@ interface Props {
   node: Node;
   selected: boolean;
   hidden?: boolean;
+  /** The pointer is over this shape. Purely visual; never enters the model. */
+  hovered?: boolean;
 }
 
 function gradientId(n: Node) {
   return `grad-${n.id}`;
+}
+
+/** Outline of the node's declared box, for symbols that have none of their own. */
+function rectPath(w: number, h: number) {
+  return `M 0 0 L ${w} 0 L ${w} ${h} L 0 ${h} Z`;
 }
 
 function Gradient({ node }: { node: Node }) {
@@ -42,7 +49,12 @@ function Gradient({ node }: { node: Node }) {
   );
 }
 
-export const ShapeView = memo(function ShapeView({ node, selected, hidden }: Props) {
+export const ShapeView = memo(function ShapeView({
+  node,
+  selected,
+  hidden,
+  hovered,
+}: Props) {
   // A shape with corrupt styling is skipped rather than allowed to throw; the
   // generator reports it as an error in the issues list.
   if (!node || !node.style || !node.textStyle) return null;
@@ -90,6 +102,44 @@ export const ShapeView = memo(function ShapeView({ node, selected, hidden }: Pro
         <path d={d} transform="translate(3 3)" fill="#000000" opacity={0.22} />
       )}
 
+      {/*
+        Interactive body.
+
+        A shape is grabbed anywhere inside it, not just on its stroke - which
+        matters most for the shapes that have no fill to hit: a text label, an
+        annotation bracket, or anything the user has set to transparent. The
+        fat transparent stroke does the same favour for the outline itself, so
+        a hairline border is still comfortable to click.
+
+        Marked data-ui so the SVG exporter strips it: it is editor chrome, not
+        part of the drawing.
+      */}
+      {!hidden && (
+        closed && !textOnly ? (
+          <path
+            data-ui="1"
+            data-hit="shape"
+            d={d}
+            fill="transparent"
+            stroke="transparent"
+            strokeWidth={Math.max(6, s.strokeWidth * 3)}
+            strokeLinejoin="round"
+            pointerEvents="all"
+          />
+        ) : (
+          <rect
+            data-ui="1"
+            data-hit="shape"
+            x={0}
+            y={0}
+            width={Math.max(0, node.w)}
+            height={Math.max(0, node.h)}
+            fill="transparent"
+            pointerEvents="all"
+          />
+        )
+      )}
+
       {!textOnly && (
         <path
           d={d}
@@ -134,6 +184,25 @@ export const ShapeView = memo(function ShapeView({ node, selected, hidden }: Pro
             </tspan>
           ))}
         </text>
+      )}
+
+      {/*
+        Hover tracks the real outline, so it reads as "this shape" rather than
+        "something around here". Selection is a box plus handles, so the two
+        states differ in form and not only in colour.
+      */}
+      {hovered && !hidden && (
+        <path
+          data-ui="1"
+          d={textOnly || !closed ? rectPath(node.w, node.h) : d}
+          fill="none"
+          stroke="var(--accent)"
+          strokeOpacity={0.75}
+          strokeWidth={Math.max(2.4, s.strokeWidth * 1.7)}
+          strokeLinejoin="round"
+          strokeDasharray={textOnly ? '5 4' : undefined}
+          pointerEvents="none"
+        />
       )}
 
       {selected && node.locked && (

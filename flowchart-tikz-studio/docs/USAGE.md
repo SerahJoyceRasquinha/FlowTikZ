@@ -17,7 +17,8 @@ remembered between sessions.
 
 ## Creating shapes
 
-1. Click a symbol in the palette — it stays armed and highlighted.
+1. Click a symbol in the palette — it stays armed and highlighted — or press
+   its letter, shown in the corner of every palette button.
 2. Click the canvas. The shape lands centred on the click, snapped to the grid.
 3. Double-clicking a palette symbol drops it in the middle of the view instead.
 
@@ -25,6 +26,36 @@ Double-clicking empty canvas creates a process box and opens it for typing —
 the fastest way to build a chain of steps.
 
 `Esc` disarms the palette and returns to the select tool.
+
+### Symbol shortcuts
+
+Every symbol has a letter. Pressing it arms that symbol exactly as clicking the
+palette button would, and pressing it again disarms it. `⇧` means hold Shift;
+the Shift tier is always the rarer half of a related pair, so `M` is manual
+input and `⇧M` is manual operation.
+
+| Category | Keys |
+| --- | --- |
+| Flow | `S` Start / End · `P` Process · `D` Decision · `I` Input / Output · `F` Predefined process · `X` Preparation · `M` Manual input · `⇧M` Manual operation · `Y` Delay · `L` Display · `O` Connector · `⇧O` Off-page connector · `U` Merge · `⇧U` Extract · `Q` Or · `⇧Q` Summing junction |
+| Documents | `W` Document · `⇧W` Multiple documents |
+| Data | `B` Database · `A` Stored data · `Z` Internal storage · `⇧Z` Direct access storage · `K` Card |
+| Extended | `J` Loop limit |
+| Basic | `R` Rectangle · `E` Ellipse |
+| Annotation | `T` Text label · `N` Note · `G` Annotation bracket |
+
+`V`, `H` and `C` stay with the tools (select, pan, connect), so no symbol
+claims them.
+
+### Which keystrokes the drawing board owns
+
+Letter shortcuts act on the drawing board, so the board has to have focus.
+Click anywhere on the canvas — a shape or bare paper — and it takes a teal
+ring; `Tab` reaches it too. While you are typing into a shape, the inspector,
+the palette filter or the code panel's search box, letters are just letters.
+
+Everything with a modifier (`Ctrl/Cmd + Z`, `Ctrl/Cmd + S`, …) and the editing
+keys (`Delete`, `Enter`, `F2`, the arrows, `Esc`, `?`) work from anywhere in
+the application, as they always have.
 
 ## Text
 
@@ -47,9 +78,18 @@ command automatically. Characters outside the Latin-1/Latin-Extended-A range
 
 ## Connecting shapes
 
-Hover a shape and four to eight small circles appear on its perimeter — the
-ports. Drag from a port to another shape (or to one of its ports) to create a
-connector. Drop on empty canvas to leave the endpoint floating at that point.
+Hover a shape and four to eight **round blue points** appear just outside its
+outline — the ports. Drag from one onto another shape, or onto one of its own
+points, to create a connector. Drop on empty canvas to leave the endpoint
+floating at that point.
+
+As you approach a valid target the point you would land on turns red and picks
+up a halo, so the attachment is obvious before you let go. The shape you are
+aiming at offers its own points while you drag.
+
+Ports sit outside the outline on purpose: the **square teal handles** on the
+boundary resize the shape, and the two must never be mistaken for one another.
+Small shapes show their four cardinal points only, so they stay uncrowded.
 
 The **Connect** tool (`C`) does the same thing by dragging anywhere on a shape.
 
@@ -199,13 +239,44 @@ The current diagram is mirrored to browser storage as you work. After an
 accidental refresh, a bar offers to restore it. The app also warns before you
 navigate away, clear the canvas or start a new diagram with unsaved changes.
 
+## Importing an existing diagram
+
+**Import** (File group, next to **Open**) converts an external file into an
+editable diagram: PNG, JPG, WEBP, BMP, GIF and AVIF images, SVG, draw.io /
+diagrams.net files (including the source embedded in draw.io's SVG and PNG
+exports), Excalidraw drawings and structured diagram JSON.
+
+- On an empty canvas the import starts at once. Otherwise choose **Replace**
+  (undo with `Ctrl+Z`), **Insert** (placed beside your work and selected) or
+  **Open as new document**.
+- The progress panel in the bottom-right shows each stage; keep working, or
+  press **Cancel** — a cancelled import changes nothing.
+- When it completes the view fits the imported diagram and the LaTeX updates.
+  **View report** lists anything approximated, unsupported or recognised with
+  low confidence; click an entry's id to select that object.
+- For images, **Compare with source image** overlays the original picture
+  (*Original*, *Overlay*, *Difference*) for checking. The overlay is never
+  exported or saved.
+- Imported objects are ordinary objects. Select one to see where it came from
+  under **Imported** in the inspector, including source properties kept as
+  metadata.
+
+Pictures are converted by the built-in offline recogniser with OCR, entirely
+in the browser — no API key, no internet connection, nothing uploaded (see
+[`IMPORT.md`](IMPORT.md)). It works best on clean digital diagrams; check the
+conversion report for text recognised with low confidence.
+
+Imported diagrams export on a transparent background. Change that under
+**Export background** in the inspector with nothing selected.
+
 ## Keyboard shortcuts
 
 Press `?` for the in-app list. The essentials:
 
 | Keys | Action |
 | --- | --- |
-| `V` `H` `C` `T` | Select, Pan, Connect, Text |
+| `V` `H` `C` | Select, Pan, Connect |
+| Letters | Arm a symbol — see the table under *Creating shapes* |
 | `Ctrl/Cmd + Z` / `+ Y` | Undo / redo |
 | `Ctrl/Cmd + C` `X` `V` `D` | Copy, cut, paste, duplicate |
 | `Ctrl/Cmd + A` | Select all |

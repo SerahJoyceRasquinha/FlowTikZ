@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="520" height="560" viewBox="0 0 520 560" onload="alert('x')">
+  <title>Order handling</title>
+  <style>
+    .box { fill: #ffffff; stroke: #1f2933; stroke-width: 2; }
+    .label { font-family: Helvetica, Arial, sans-serif; font-size: 14px; fill: #12161c; }
+    #decision-shape { fill: #fff2cc; stroke: #d6b656; }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#1f2933"/>
+    </marker>
+    <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dbe8ff"/>
+      <stop offset="1" stop-color="#2f6feb"/>
+    </linearGradient>
+    <filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="2"/></filter>
+  </defs>
+  <script>alert('never runs')</script>
+  <!-- colored page background: must be removed, not imported as a shape -->
+  <rect x="0" y="0" width="520" height="560" fill="#eef2f7"/>
+
+  <ellipse cx="260" cy="50" rx="70" ry="28" fill="url(#blueGrad)" stroke="#1f2933" stroke-width="2"/>
+  <text x="260" y="55" text-anchor="middle" class="label">Start</text>
+
+  <rect class="box" x="180" y="120" width="160" height="70" onclick="steal()"/>
+  <text x="260" y="152" text-anchor="middle" class="label"><tspan x="260" dy="0">Receive</tspan><tspan x="260" dy="17">order</tspan></text>
+
+  <polygon id="decision-shape" points="260,240 350,300 260,360 170,300" stroke-width="2"/>
+  <text x="260" y="305" text-anchor="middle" class="label" font-weight="bold">In stock?</text>
+
+  <g id="fulfil">
+    <rect x="380" y="410" width="120" height="60" rx="10" fill="#d4f0ea" stroke="#0f9b8e" stroke-width="2" filter="url(#shadow)"/>
+    <text x="440" y="445" text-anchor="middle" class="label">Ship</text>
+    <rect x="380" y="490" width="120" height="50" fill="#ffffff" stroke="#0f9b8e" stroke-width="2"/>
+    <text x="440" y="520" text-anchor="middle" class="label">Invoice</text>
+  </g>
+
+  <rect x="30" y="410" width="120" height="60" fill="#ffffff" stroke="#c0392b" stroke-width="2" stroke-dasharray="6 3" transform="rotate(-8 90 440)"/>
+  <text x="90" y="445" text-anchor="middle" class="label">Backorder</text>
+
+  <line x1="260" y1="78" x2="260" y2="120" stroke="#1f2933" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="260" y1="190" x2="260" y2="240" stroke="#1f2933" stroke-width="2" marker-end="url(#arrow)"/>
+  <polyline points="350,300 440,300 440,410" fill="none" stroke="#1f2933" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="395" y="292" text-anchor="middle" class="label" font-size="12">Yes</text>
+  <path d="M 170 300 L 90 300 L 90 410" fill="none" stroke="#1f2933" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#arrow)"/>
+  <text x="130" y="292" text-anchor="middle" class="label" font-size="12">No</text>
+
+  <text x="20" y="30" class="label" font-style="italic">v1.2 – internal</text>
+  <image x="0" y="0" width="10" height="10" xlink:href="http://evil.example/track.png"/>
+</svg>

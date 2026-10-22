@@ -7,6 +7,7 @@ import {
   emptyDiagram,
 } from '../model/defaults';
 import { normalizeOrder } from '../model/diagram';
+import { coerceMeta, coercePath } from '../model/meta';
 
 /**
  * Save file format.
@@ -52,12 +53,18 @@ function coerceNode(raw: any, id: string): Node | null {
     z: Number(raw.z) || 0,
     groupId: typeof raw.groupId === 'string' ? raw.groupId : undefined,
   };
+  // Optional fields are only written when present and well formed, so files
+  // saved before they existed round-trip byte for byte.
+  const path = coercePath(raw.path);
+  if (path) n.path = path;
+  const meta = coerceMeta(raw.meta);
+  if (meta) n.meta = meta;
   return n;
 }
 
 function coerceEdge(raw: any, id: string): Edge | null {
   if (!raw || typeof raw !== 'object') return null;
-  return {
+  const edge: Edge = {
     id,
     source: raw.source ?? {},
     target: raw.target ?? {},
@@ -76,6 +83,9 @@ function coerceEdge(raw: any, id: string): Edge | null {
     label: raw.label,
     z: Number(raw.z) || 0,
   };
+  const meta = coerceMeta(raw.meta);
+  if (meta) edge.meta = meta;
+  return edge;
 }
 
 /**

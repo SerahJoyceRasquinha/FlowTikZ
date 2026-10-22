@@ -7,3 +7,8 @@ coverage/
 .vscode/
 .idea/
 latex-verify/out/
+
+# Local secrets - never commit
+.env
+.env.local
+.env.*.local

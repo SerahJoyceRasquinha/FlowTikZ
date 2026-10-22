@@ -2,7 +2,7 @@
   "name": "flowchart-tikz-studio",
   "version": "1.0.0",
   "private": true,
-  "description": "Visual flowchart editor with real-time, Overleaf-ready LaTeX/TikZ generation.",
+  "description": "Visual flowchart editor with real-time, Overleaf-ready LaTeX/TikZ generation, and import of images, SVG and draw.io diagrams as editable flowcharts.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,11 +11,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "latex:fixtures": "node scripts/emit-fixtures.mjs"
+    "latex:fixtures": "node scripts/emit-fixtures.mjs",
+    "serve": "node server/serve.mjs",
+    "fixtures:import": "python3 scripts/make-import-fixtures.py"
   },
   "dependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "tesseract.js": "^7.0.0",
     "zustand": "^4.5.5"
   },
   "devDependencies": {

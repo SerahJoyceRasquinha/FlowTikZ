@@ -1,5 +1,6 @@
 import type { Diagram } from '../model/types';
 import { buildSvgString, svgDimensions } from './svg';
+import { isTransparentBackground } from '../model/meta';
 
 /** Rasterise the diagram to a PNG blob at the requested pixel ratio. */
 export async function exportPng(
@@ -23,8 +24,11 @@ export async function exportPng(
   canvas.height = Math.max(1, Math.round(height * scale));
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('This browser did not provide a 2D canvas context.');
-  ctx.fillStyle = d.settings.background || '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // PNG keeps an alpha channel, so a transparent document stays transparent.
+  if (!isTransparentBackground(d.settings.background)) {
+    ctx.fillStyle = d.settings.background || '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
   return new Promise<Blob>((resolve, reject) => {

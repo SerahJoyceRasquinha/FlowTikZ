@@ -25,6 +25,14 @@
   --signal: #f2a93b;
   --danger: #e5674b;
 
+  /*
+   * Connection points get their own colour, away from the teal that means
+   * "selection" everywhere else, so a port never reads as a resize handle.
+   * The hot variant is the "release here" state.
+   */
+  --port: #3f7fe0;
+  --port-hot: #e0483a;
+
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
     Arial, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas,
@@ -371,11 +379,18 @@ h4 {
 }
 
 .shape-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 6px 2px 5px;
+  /*
+   * The top padding is the badge's lane. Reserving it here, rather than
+   * hoping the thumbnail is narrow enough to dodge an absolutely positioned
+   * corner, is what keeps the two from colliding at every palette width -
+   * including the narrower palette used below 1200px.
+   */
+  padding: 17px 2px 5px;
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius);
@@ -397,6 +412,11 @@ h4 {
   color: var(--text);
 }
 
+.shape-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .shape-btn.on {
   background: #12312c;
   border-color: var(--accent-dim);
@@ -405,6 +425,46 @@ h4 {
 
 .shape-btn.on svg {
   color: var(--accent);
+}
+
+.shape-name {
+  /* Two lines at most, so a long name never pushes the grid out of step. */
+  display: block;
+  width: 100%;
+  padding: 0 2px;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The shortcut letter sits in the corner the thumbnail does not use. It is
+ * out of the flow, so adding it changed no button's size and no row's height.
+ */
+.shape-key {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  min-width: 14px;
+  padding: 0 2px;
+  background: var(--panel-3);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  line-height: 12px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.shape-btn:hover .shape-key {
+  border-color: #3b4859;
+  color: var(--text);
+}
+
+.shape-btn.on .shape-key {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06231e;
 }
 
 .palette-hint {
@@ -423,6 +483,36 @@ h4 {
   min-width: 0;
   background: var(--paper);
   overflow: hidden;
+  outline: none;
+}
+
+/*
+ * Drawing-board focus.
+ *
+ * An inset ring rather than a border: a border would take a pixel of width
+ * from the canvas and shift the whole diagram sideways every time focus
+ * moved. This paints inside the existing box, so nothing reflows. The rule
+ * lives on the shell, so it reads the same whether the user clicked a shape,
+ * clicked bare paper, or tabbed to the board.
+ */
+.canvas-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* Above the SVG, below the text-editing overlay (10). */
+  z-index: 4;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 2px transparent;
+  opacity: 0;
+  transition: opacity 110ms ease-out;
+  pointer-events: none;
+}
+
+.canvas-shell.is-focused::after {
+  box-shadow:
+    inset 0 0 0 2px var(--accent),
+    inset 0 0 12px rgba(53, 196, 168, 0.18);
+  opacity: 1;
 }
 
 .canvas-svg {
@@ -988,6 +1078,47 @@ kbd {
   font-size: 10.5px;
 }
 
+/*
+ * Symbol shortcut table. Generated from the same map as the key handler, so
+ * it grows a row by itself whenever a symbol is added to the registry.
+ */
+.shape-key-table {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 4px 18px;
+  padding: 4px 0 14px;
+}
+
+.shape-key-table h4 {
+  margin: 8px 0 4px;
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.shape-key-table ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shape-key-table li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 11.5px;
+}
+
+/* The wide kbd of the main list would swamp a single letter. */
+.shape-key-table kbd,
+.help-notes kbd {
+  min-width: 22px;
+  text-align: center;
+}
+
 .help-notes {
   border-top: 1px solid var(--rule);
   padding-top: 12px;
@@ -1076,4 +1207,311 @@ kbd {
   font-family: var(--font-mono);
   font-size: 11.5px;
   line-height: 1.6;
+}
+
+/* ---------------------------------------------------------------- import */
+
+/*
+ * The import panel floats over the bottom-right of the drawing area. It is a
+ * status surface, not a dialog: the editor behind it stays live.
+ */
+.import-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 36px;
+  z-index: 60;
+  width: 320px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  padding: 12px 14px 12px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+
+.import-panel.is-error {
+  border-left-color: var(--danger);
+}
+
+.import-panel.is-cancelled {
+  border-left-color: var(--muted);
+}
+
+.import-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.import-panel-head > div {
+  min-width: 0;
+}
+
+.import-panel h3 {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-format {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.import-stages {
+  margin: 10px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.import-stages li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.import-stages li.done {
+  color: var(--text);
+}
+
+.import-stages li.current {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.import-stages .mark {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.import-stages li.current .mark {
+  border: 2px solid var(--accent-dim);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: import-spin 0.8s linear infinite;
+}
+
+@keyframes import-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Indeterminate: recognition reports no percentage, so none is invented. */
+.import-indeterminate {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  background: var(--panel-3);
+  border-radius: 2px;
+}
+
+.import-indeterminate span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: import-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes import-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(290%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .import-stages li.current .mark,
+  .import-indeterminate span {
+    animation: none;
+  }
+}
+
+.import-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.import-summary p {
+  margin: 10px 0 0;
+  line-height: 1.45;
+}
+
+.import-summary .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.import-attention {
+  color: var(--signal);
+}
+
+.import-ok {
+  color: var(--accent);
+}
+
+.import-compare {
+  margin-top: 12px;
+}
+
+.import-compare .segmented {
+  margin-top: 5px;
+}
+
+.import-error p {
+  margin: 10px 0 0;
+  color: #ffc4b5;
+}
+
+.import-error .import-note {
+  color: var(--muted);
+}
+
+.import-error .link {
+  margin-top: 8px;
+  font-family: var(--font-ui);
+}
+
+.import-detail {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  word-break: break-word;
+  color: var(--muted) !important;
+}
+
+.import-dialog {
+  width: min(560px, 100%);
+}
+
+.import-dialog-lede {
+  margin: 12px 0;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.import-choices {
+  display: grid;
+  gap: 8px;
+}
+
+.import-choice {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.import-choice:hover,
+.import-choice:focus-visible {
+  border-color: var(--accent-dim);
+  background: #12312c;
+  outline: none;
+}
+
+.import-choice b {
+  color: var(--text-strong);
+  font-size: 12.5px;
+}
+
+.import-choice span {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.import-report .report-group h3 {
+  margin: 14px 0 6px;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.import-report .report-group .count {
+  margin-left: 4px;
+  padding: 0 5px;
+  background: var(--panel-3);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.import-report .report-group.cat-unsupported h3,
+.import-report .report-group.cat-unmapped-connector h3,
+.import-report .report-group.cat-low-confidence-text h3 {
+  color: var(--signal);
+}
+
+.import-report ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.import-report li {
+  margin: 3px 0;
+  line-height: 1.45;
+}
+
+.imported-from details {
+  margin-top: 6px;
+}
+
+.imported-from summary {
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.meta-list {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.meta-list > div {
+  display: grid;
+  grid-template-columns: 42% 1fr;
+  gap: 6px;
+  padding: 1px 0;
+}
+
+.meta-list dt {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+}
+
+.meta-list dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

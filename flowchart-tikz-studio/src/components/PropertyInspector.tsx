@@ -3,12 +3,49 @@ import type {
   ArrowHead,
   Edge,
   Node,
+  ObjectMeta,
   RoutingKind,
   ShadingKind,
   StrokeStyle,
 } from '../model/types';
 import { getShapeDef } from '../model/shapes';
 import { ColorField } from './ColorField';
+import { isTransparentBackground } from '../model/meta';
+
+/** Read-only provenance of an imported object, including preserved source properties. */
+function ImportedFrom({ meta }: { meta: ObjectMeta | undefined }) {
+  const imp = meta?.import;
+  if (!imp) return null;
+  const preserved = Object.entries(imp.preserved ?? {});
+  return (
+    <section className="imported-from">
+      <h4>Imported</h4>
+      <p className="note">
+        From {imp.format || 'an external file'}
+        {imp.sourceId ? ` (source id ${imp.sourceId})` : ''}
+        {imp.confidence !== undefined ? ` · recognised with ${Math.round(imp.confidence * 100)}% confidence` : ''}.
+      </p>
+      {imp.notes?.map((n, i) => (
+        <p key={i} className="note">
+          {n}
+        </p>
+      ))}
+      {preserved.length > 0 && (
+        <details>
+          <summary>{preserved.length} source propert{preserved.length === 1 ? 'y' : 'ies'} kept as metadata</summary>
+          <dl className="meta-list">
+            {preserved.slice(0, 40).map(([k, v]) => (
+              <div key={k}>
+                <dt>{k}</dt>
+                <dd title={String(v)}>{String(v).slice(0, 80)}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
+    </section>
+  );
+}
 
 /* ------------------------------------------------------------ primitives */
 
@@ -368,6 +405,7 @@ function ShapePane({ nodes }: { nodes: Node[] }) {
           Locked
         </label>
       </section>
+      {!many && <ImportedFrom meta={first.meta} />}
     </>
   );
 }
@@ -560,6 +598,7 @@ function EdgePane({ edges }: { edges: Edge[] }) {
           onChange={(hex) => patch((edge) => void (edge.label = { ...label, color: hex }))}
         />
       </section>
+      {!many && <ImportedFrom meta={first.meta} />}
     </>
   );
 }
@@ -622,6 +661,24 @@ function CanvasPane() {
           />
           Snap to other shapes
         </label>
+      </section>
+      <section>
+        <h4>Export background</h4>
+        <label className="checkline">
+          <input
+            type="checkbox"
+            checked={isTransparentBackground(doc.settings.background)}
+            onChange={(e) => updateSettings({ background: e.target.checked ? 'none' : '#ffffff' })}
+          />
+          Transparent (SVG and PNG export)
+        </label>
+        {!isTransparentBackground(doc.settings.background) && (
+          <ColorField
+            label="Background colour"
+            value={doc.settings.background || '#ffffff'}
+            onChange={(hex) => updateSettings({ background: hex })}
+          />
+        )}
       </section>
       <section>
         <h4>LaTeX scale</h4>
