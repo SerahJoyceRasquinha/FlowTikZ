@@ -144,3 +144,42 @@ the rest. What cannot be exact:
   arbitrary-code-execution surface.
 - **Live collaboration**, **shape-specific connection logic** beyond ports, and
   **automatic layout**.
+
+
+## Charts
+
+**Fonts.** Chart text is set in TeX's sans-serif font, slightly narrower than
+the browser's. Plot area, ranges, ticks, bars, points, slices, colours and the
+anchor of every label are identical; glyph widths differ a little.
+
+**Rotation.** Charts cannot be rotated (the handle is hidden for them).
+
+**Scope.** No line smoothing, trend lines, secondary axes, maps or treemaps.
+A Legend field shows at most 12 series and an axis at most 200 categories
+(filters and Top N narrow it). Old `.xls`, `.ods` and `.numbers` files must be
+saved as `.xlsx` or CSV first.
+
+**Size.** The table is stored in the diagram file (up to 20,000 rows), so a
+diagram with a big table makes a big JSON file and autosave entry; the LaTeX
+only ever contains the aggregated values.
+
+## Mathematics, physics and chemistry
+
+- **Maths fonts.** Formulas use LaTeX's maths fonts. Colour, size and bold apply;
+  the font-family and italic controls do not, since they have no faithful
+  equivalent in math mode.
+- **Label placement.** Component labels are positioned by CircuiTikZ when
+  compiled; the canvas places them on the same side but not to the point.
+- **Symbol drawing.** Canvas circuit symbols closely approximate CircuiTikZ; the
+  compiled symbol is CircuiTikZ's own. Terminals coincide exactly.
+- **Wires** are routed automatically at right angles. Waypoints cannot be dragged
+  by hand, as with connectors generally.
+- **Fill** is available only on symbols with a closed body (sources, meters,
+  lamps, fuses, the op-amp).
+- **Aromatic circles** come from the *Benzene (circle)* template; custom rings
+  are drawn with alternating bonds.
+- **Unicode.** Greek letters and common operators typed directly are converted
+  to macros. Other non-ASCII characters are refused in formulas, since pdfLaTeX
+  cannot typeset them.
+- **chemfig** needs the `simplekv` package, included in full TeX distributions
+  and on Overleaf. On Debian/Ubuntu install `texlive-plain-generic`.

@@ -108,6 +108,12 @@ const $ = (sel: string) => container.querySelector(sel);
 const $$ = (sel: string) => Array.from(container.querySelectorAll(sel));
 const button = (text: string) => $$('button').find((b) => b.textContent?.trim() === text) as HTMLButtonElement | undefined;
 const code = () => $('.code-text')!.textContent!;
+/** File-related actions live in the File menu; open it before looking for them. */
+const openFileMenu = () => {
+  if ($('[data-tour="file"] .menu')) return;
+  const toggle = $('[data-tour="file"] > button') as HTMLButtonElement;
+  act(() => toggle.click());
+};
 
 async function waitFor(cond: () => boolean, timeout = 8000) {
   const start = Date.now();
@@ -133,10 +139,11 @@ function pickFile(file: File) {
 describe('import UI', () => {
   it('offers Import beside Open, accepting every supported format', () => {
     render();
+    openFileMenu();
     const imp = $('button[data-action="import"]') as HTMLButtonElement;
-    expect(imp.textContent).toBe('Import');
+    expect(imp.querySelector('.mi-label')!.textContent).toBe('Import diagram');
     expect(imp.title).toMatch(/PNG.*SVG.*draw\.io/);
-    expect(button('Open')!.title).toMatch(/saved by this app \(\.json\)/);
+    expect(($('button[data-action="open"]') as HTMLButtonElement).title).toMatch(/saved by this app \(\.json\)/);
     const accept = ($('input[data-input="import"]') as HTMLInputElement).accept;
     for (const ext of ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif', '.svg', '.drawio', '.xml', '.json']) expect(accept).toContain(ext);
     expect(consoleErrors).toEqual([]);
@@ -208,7 +215,10 @@ describe('import UI', () => {
       id = S().addNode('process', { x: 100, y: 100 });
     });
     expect($(`[data-object-id="${id}"]`)).toBeTruthy();
-    expect(button('Importing…')!.disabled).toBe(true);
+    // The File button says so, and the Import entry inside it is disabled.
+    expect(button('Importing…')).toBeTruthy();
+    openFileMenu();
+    expect(($('button[data-action="import"]') as HTMLButtonElement).disabled).toBe(true);
     act(() => cancelImport());
     expect(statusOf()).toBe('cancelled');
     await act(async () => {
@@ -269,7 +279,8 @@ describe.each(CASES)('acceptance: $name', (c) => {
     useOffline();
     render();
 
-    // 1-3. Launch, click Import, select a file.
+    // 1-3. Launch, open File, click Import, select a file.
+    openFileMenu();
     const importButton = $('button[data-action="import"]') as HTMLButtonElement;
     const pickerClick = vi.spyOn($('input[data-input="import"]') as HTMLInputElement, 'click').mockImplementation(() => undefined);
     act(() => importButton.click());

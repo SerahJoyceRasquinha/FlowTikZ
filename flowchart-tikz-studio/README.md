@@ -1,8 +1,23 @@
-# Flowchart → TikZ Studio
+# FlowTikZ
 
-A visual flowchart editor that writes its own LaTeX. You draw on the canvas on
-the right; compile-ready TikZ appears on the left and stays in step with every
-edit. Paste it into Overleaf and the compiled figure matches what you drew.
+A visual flowchart and chart editor that writes its own LaTeX. You draw on the
+canvas on the right, or build a chart from an Excel / CSV file, and
+compile-ready TikZ / PGFPlots appears on the left, staying in step with every
+edit. Paste it into Overleaf and the compiled figure matches what you made.
+
+**Charts from data (Power BI-style).** Load an `.xlsx` or `.csv` file, pick a
+chart type (column, bar, line, area, scatter, pie, donut, histogram) and drag
+columns into **Axis**, **Values**, **Legend** and **Filters**, with sum,
+average, count, distinct count, minimum, maximum and median. The chart is
+drawn on the canvas, and its PGFPlots code carries the data, the field names
+and the exact colours, so the spreadsheet is never needed in Overleaf. See
+[`docs/CHARTS.md`](docs/CHARTS.md).
+
+**Mathematics, physics and chemistry.** Build equations from nested boxes with a
+live preview, wire electrical circuits from a CircuiTikZ symbol library, and
+draw chemical formulas, reactions and molecules. Everything is an editable
+object on the same canvas and generates real amsmath, CircuiTikZ, mhchem and
+chemfig code. See [`docs/SCIENCE.md`](docs/SCIENCE.md).
 
 Built for people producing figures for papers, theses, project reports and
 technical documentation — where a screenshot of a drawing tool is not good
@@ -27,7 +42,7 @@ are projections of it, which is why they cannot drift apart.
 
 Requires Node.js 18 or newer.
 
-**Windows, one click:** double-click `Start Flowchart Studio.bat`. It checks
+**Windows, one click:** double-click `Start Flowchart Studio.bat` (the FlowTikZ launcher). It checks
 everything listed in `Install Requirements.bat` (Node.js 18+ with npm, and the
 project packages). If everything is there it starts the app straight away. If
 something is missing, it installs only that part first (Node.js is installed at
@@ -56,7 +71,7 @@ Other scripts:
 | `npm run build` | Typecheck, then build to `dist/` |
 | `npm run preview` | Serve the production build locally |
 | `npm run serve` | Production server for `dist/`, no dependencies |
-| `npm test` | Run the full test suite (417 tests) |
+| `npm test` | Run the full test suite (1364 tests) |
 | `npm run test:watch` | Tests in watch mode |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run latex:fixtures` | Generate `.tex` fixtures into `latex-verify/` |
@@ -70,8 +85,7 @@ There is no server-side piece: image import (including OCR) runs in the browser.
 
 ## The 60-second tour
 
-1. Click a symbol in the left palette — or press the letter shown in its
-   corner — then click the canvas to place it.
+1. Click a symbol in the left palette, then click the canvas to place it.
 2. Double-click a shape to type into it. `Esc` cancels, `Ctrl+Enter` commits.
 3. Hover a shape and drag from one of the round blue points just outside it to
    another shape to connect them. The point you will land on lights up red
@@ -79,7 +93,10 @@ There is no server-side piece: image import (including OCR) runs in the browser.
 4. Select anything and edit it in the inspector on the right.
 5. Watch the panel on the left. Select a shape and **its own generated lines
    light up**; click any generated line to select the object that produced it.
-6. Press **Copy**, paste into Overleaf, recompile.
+6. Press **Copy LaTeX**, paste into Overleaf, recompile.
+7. For a chart: **Chart from data** → load a file (or the sample) → choose the
+   chart type and drag fields into the boxes → **Insert chart**. Fine-tune
+   colours, titles, legend and numbers in the panel on the right.
 
 Press `?` in the app for the full shortcut list.
 
@@ -99,12 +116,19 @@ off-page connector, merge, extract, or, summing junction, document, multiple
 documents, database, stored data, internal storage, direct access storage, card,
 loop limit, rectangle, ellipse, text label, note and annotation bracket.
 
-**Keyboard.** Every symbol has a letter, shown in the corner of its palette
-button and generated from the same table the key handler reads, so the label
-and the shortcut cannot drift apart. Letter shortcuts belong to the drawing
-board and fire only while it has focus — click the canvas and it takes a teal
-ring — so typing in the inspector, the filter or the code panel is never
-intercepted.
+**Keyboard.** Shapes are placed from the palette only, so typing on the board
+never arms a shape by accident. `V`, `H` and `C` switch tools; `Ctrl/Cmd +` /
+`-` / `0` / `1` zoom in, zoom out, reset and fit. The zoom chords work from
+anywhere in the app (including while a text field has focus), on the main
+keyboard and the numpad, on any keyboard layout, and always zoom the drawing
+rather than the browser page.
+
+**Charts.** Eight chart types built from imported tables (Excel `.xlsx`, CSV,
+TSV or cells pasted from a spreadsheet), with field wells, seven aggregations,
+filters, sorting, top N, date grouping (month, quarter, year), stacking,
+seven colour themes plus per-series colours, titles, data labels, legend
+position, gridlines, axis range and number formatting. Emitted as PGFPlots
+with the data written into `\addplot` coordinates.
 
 **Connectors.** Seven routing styles (straight, elbow, rounded elbow, curved,
 Bezier, zig-zag, polyline), eight arrowhead types at either or both ends,
@@ -144,6 +168,7 @@ the model cannot show is kept on the object as metadata.
 | Document | Contents |
 | --- | --- |
 | [`docs/USAGE.md`](docs/USAGE.md) | Full user guide, including the Overleaf workflow |
+| [`docs/CHARTS.md`](docs/CHARTS.md) | Charts from Excel/CSV data: field wells, aggregation, styling, the PGFPlots output |
 | [`docs/IMPORT.md`](docs/IMPORT.md) | Importing images, SVG and draw.io: pipeline, offline recognition, security, limits |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Module map, data model, and why each decision was made |
 | [`docs/LATEX_MAPPING.md`](docs/LATEX_MAPPING.md) | Every visual feature and the TikZ it becomes |
@@ -177,17 +202,21 @@ library would have supplied.
 
 ## Verified, not assumed
 
-`npm test` runs 417 tests, including three DOM suites that mount the real
+`npm test` runs 1364 tests, including four DOM suites that mount the real
 application and fail if React logs a single warning — a smoke test of the
 panels, one driving actual pointer and keyboard input through the assembled
 component tree, and one running the complete import workflow (pick a file →
 background conversion → editable diagram → LaTeX → edit → export → save →
-reload) for PNG images (recognised offline with real OCR), SVG and draw.io.
+reload) for PNG images (recognised offline with real OCR), SVG and draw.io,
+and one driving the chart builder and chart panel end to end (load data → drag
+fields → insert → edit → the LaTeX follows each change).
 
-Beyond that, `scripts/verify-latex.sh` compiles seven generated fixtures with
-`pdflatex` — the worked example, every symbol, every styling combination, every
-routing and arrowhead, an empty diagram, an extreme scale, and a dimensional
-control. All seven compile clean. The dimensional control checks the compiled
+Beyond that, `scripts/verify-latex.sh` compiles nine generated fixtures with
+`pdflatex`: the worked example, every symbol, every styling combination, every
+routing and arrowhead, an empty diagram, an extreme scale, a dimensional
+control, every chart type and option on one page (18 charts with awkward data,
+plus a flowchart pointing at a chart), and a chart snippet pasted into an
+`article` figure. All nine compile clean. The dimensional control checks the compiled
 page size against the size the model asked for:
 
 ```

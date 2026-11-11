@@ -216,3 +216,17 @@ The palette, canvas, exports, TikZ emitter and tests all pick it up
 automatically. To add a styling property, extend `ShapeStyle`, add a default in
 `defaults.ts`, a control in `PropertyInspector.tsx`, and one branch in
 `latex/styles.ts`.
+
+## Scientific objects
+
+| Object | Output |
+| --- | --- |
+| Formula | `\\node[fcformula, scale=s] {$\\displaystyle ...$}` |
+| Chemical formula or reaction | `\\node[fcformula, scale=s] {\\ce{...}}` |
+| Molecule | `\\node {\\scalebox{k}{\\setchemfig{...}\\chemfig{...}}}` |
+| Two-terminal part | `\\draw[fccircuit, ...] (a) to[R, l={$R_1$}] (b);` |
+| Transistor, op-amp, transformer | `\\node[npn] {}`, in a scope when rotated, scaled or flipped |
+| Ground, junction, terminal | `\\node[ground] {}`, `circ`, `ocirc` at the connection point |
+| Wire | An ordinary `\\draw` path between the terminal coordinates |
+| Physics part | Ordinary `\\draw` and `\\fill` paths |
+

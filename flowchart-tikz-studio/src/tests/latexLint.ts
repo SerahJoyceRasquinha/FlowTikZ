@@ -43,16 +43,30 @@ export function lintLatex(code: string, opts: { standalone: boolean }): LintResu
   if (brackets !== 0) problems.push(`unbalanced brackets (${brackets})`);
 
   /* One terminating semicolon per drawing statement. */
+  const stripped = lines.map((l) => l.replace(/(^|[^\\])%.*$/, '$1')).join('\n');
   const statements =
-    (code.match(/\\draw\[/g) ?? []).length +
-    (code.match(/\\node\[/g) ?? []).length +
-    (code.match(/\\coordinate \(/g) ?? []).length;
-  const semicolons = (code.match(/;/g) ?? []).length;
+    (stripped.match(/\\draw\[/g) ?? []).length +
+    (stripped.match(/\\node\[/g) ?? []).length +
+    (stripped.match(/\\coordinate \(/g) ?? []).length +
+    // Chart output: fills, legend marks and PGFPlots plots.
+    (stripped.match(/\\fill\[/g) ?? []).length +
+    (stripped.match(/\\filldraw\[/g) ?? []).length +
+    (stripped.match(/\\path plot\[/g) ?? []).length +
+    (stripped.match(/\\addplot\[/g) ?? []).length;
+  const semicolons = (stripped.match(/;/g) ?? []).length;
   if (statements !== semicolons) {
     problems.push(
       `${statements} drawing statements but ${semicolons} semicolons`,
     );
   }
+
+  /* PGFPlots axes must close, and need the package. */
+  const axesOpen = (code.match(/\\begin\{axis\}/g) ?? []).length;
+  const axesClose = (code.match(/\\end\{axis\}/g) ?? []).length;
+  if (axesOpen !== axesClose) problems.push(`${axesOpen} axis environments opened, ${axesClose} closed`);
+  // A snippet without comments carries no preamble hints at all, by design.
+  if (axesOpen > 0 && opts.standalone && !/usepackage\{pgfplots\}/.test(code)) problems.push('pgfplots is required but not loaded');
+  if (/fctextb?=/.test(code) && !code.includes('fctext/.style=')) problems.push('style fctext is used but never defined');
 
   /* Scopes must close. */
   const open = (code.match(/\\begin\{scope\}/g) ?? []).length;

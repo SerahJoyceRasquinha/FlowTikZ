@@ -12,6 +12,8 @@ import {
   wave,
   translateSegs,
 } from './path';
+import { CIRCUIT_SHAPE_DEFS } from '../science/physics/circuits';
+import { PHYSICS_SHAPE_DEFS } from '../science/physics/diagramShapes';
 
 export interface PortDef {
   id: PortId;
@@ -53,6 +55,12 @@ export interface ShapeDef {
   noOutline?: boolean;
   /** Notes for the user, surfaced in the property inspector. */
   note?: string;
+  /** Closed sub-paths taking the fill and the stroke (scientific symbols). */
+  bodies?: (w: number, h: number, node?: Node) => Seg[][];
+  /** Sub-paths filled in the line colour: arrowheads, dots, thick plates. */
+  solids?: (w: number, h: number, node?: Node) => Seg[][];
+  /** Offered the flip commands (`Node.flipH` / `flipV`). */
+  flippable?: boolean;
 }
 
 /* ------------------------------------------------------------------ ports */
@@ -712,8 +720,52 @@ export const FREEFORM_DEF: ShapeDef = {
   note: 'Outline imported from another file. Resize and style it like any shape; TikZ receives the exact path.',
 };
 
+/**
+ * A data chart built from an imported table. Like the imported outline it is
+ * not offered in the palette: charts are created from the Chart builder. The
+ * box is what moves, resizes and snaps; what is drawn inside comes from the
+ * node's `chart` spec.
+ */
+export const CHART_DEF: ShapeDef = {
+  id: 'chart',
+  label: 'Chart',
+  category: 'Basic',
+  defaultSize: { w: 560, h: 360 },
+  outline: (w, h) => rect(0, 0, w, h),
+  textBox: (w, h) => ({ x: 0, y: 0, w, h }),
+  ports: boxPorts,
+  noOutline: true,
+  note: 'A chart built from imported data. The LaTeX is PGFPlots code with the data written in.',
+};
+
+/** Boxes whose content is typeset or drawn from `node.science`. */
+const scienceBox = (id: string, label: string, note: string): ShapeDef => ({
+  id,
+  label,
+  category: 'Basic',
+  defaultSize: { w: 120, h: 50 },
+  outline: (w, h) => rect(0, 0, w, h),
+  textBox: (w, h) => ({ x: 0, y: 0, w, h }),
+  ports: boxPorts,
+  noOutline: true,
+  note,
+});
+
+export const MATH_DEF = scienceBox('math', 'Formula', 'Double-click to edit. The LaTeX is the real formula, not a picture.');
+export const CHEM_DEF = scienceBox('chem', 'Chemical formula', 'Double-click to edit. The LaTeX uses mhchem.');
+export const MOLECULE_DEF = scienceBox('molecule', 'Molecule', 'Double-click to edit the structure. The LaTeX uses chemfig.');
+
 export const SHAPE_DEFS: Record<string, ShapeDef> = Object.fromEntries(
-  [...defs, FREEFORM_DEF].map((d) => [d.id, d]),
+  [
+    ...defs,
+    FREEFORM_DEF,
+    CHART_DEF,
+    MATH_DEF,
+    CHEM_DEF,
+    MOLECULE_DEF,
+    ...CIRCUIT_SHAPE_DEFS,
+    ...PHYSICS_SHAPE_DEFS,
+  ].map((d) => [d.id, d]),
 );
 
 /** Symbols offered in the palette, in palette order. */
@@ -727,14 +779,38 @@ export function getShapeDef(kind: string): ShapeDef {
   return SHAPE_DEFS[kind] ?? SHAPE_DEFS.process;
 }
 
+/** Apply a node's mirror flags to local-space geometry. */
+function mirrored(n: Node, segs: Seg[]): Seg[] {
+  if (!n.flipH && !n.flipV) return segs;
+  const t = (p: Point): Point => ({
+    x: n.flipH ? n.w - p.x : p.x,
+    y: n.flipV ? n.h - p.y : p.y,
+  });
+  return segs.map((s) => {
+    if (s.c === 'Z') return s;
+    if (s.c === 'C') return { c: 'C', c1: t(s.c1), c2: t(s.c2), p: t(s.p) };
+    return { c: s.c, p: t(s.p) };
+  });
+}
+
 /** Local-space outline for a node instance. */
 export function nodeOutline(n: Node): Seg[] {
-  return getShapeDef(n.kind).outline(n.w, n.h, n);
+  return mirrored(n, getShapeDef(n.kind).outline(n.w, n.h, n));
 }
 
 export function nodeDecorations(n: Node): Seg[][] {
   const def = getShapeDef(n.kind);
-  return def.decorations ? def.decorations(n.w, n.h, n) : [];
+  return def.decorations ? def.decorations(n.w, n.h, n).map((d) => mirrored(n, d)) : [];
+}
+
+export function nodeBodies(n: Node): Seg[][] {
+  const def = getShapeDef(n.kind);
+  return def.bodies ? def.bodies(n.w, n.h, n).map((d) => mirrored(n, d)) : [];
+}
+
+export function nodeSolids(n: Node): Seg[][] {
+  const def = getShapeDef(n.kind);
+  return def.solids ? def.solids(n.w, n.h, n).map((d) => mirrored(n, d)) : [];
 }
 
 export function nodeTextBox(n: Node): Rect {
@@ -745,5 +821,10 @@ export function nodeTextBox(n: Node): Rect {
 export function nodePorts(n: Node): PortDef[] {
   const def = getShapeDef(n.kind);
   const list = def.ports ? def.ports(n.w, n.h) : boxPorts(n.w, n.h);
-  return list;
+  if (!n.flipH && !n.flipV) return list;
+  return list.map((p) => ({
+    ...p,
+    p: { x: n.flipH ? n.w - p.p.x : p.p.x, y: n.flipV ? n.h - p.p.y : p.p.y },
+    dir: { x: n.flipH ? -p.dir.x : p.dir.x, y: n.flipV ? -p.dir.y : p.dir.y },
+  }));
 }

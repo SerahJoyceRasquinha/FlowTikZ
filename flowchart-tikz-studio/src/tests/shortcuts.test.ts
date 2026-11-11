@@ -1,118 +1,52 @@
 import { describe, expect, it } from 'vitest';
-import {
-  RESERVED_TOOL_KEYS,
-  SHAPE_SHORTCUTS,
-  shapeForKey,
-  shapeShortcutRows,
-  shortcutAria,
-  shortcutForShape,
-  shortcutLabel,
-  shortcutSpoken,
-} from '../model/shortcuts';
-import { SHAPE_LIST } from '../model/shapes';
+import { SHORTCUTS, zoomIntent } from '../hooks/useKeyboardShortcuts';
 
 /**
- * The palette badge, the accessible label, the help table and the key handler
- * all read one map. These tests are what make that claim enforceable: they
- * fail the moment a symbol is added without a binding, two symbols claim the
- * same chord, or a chord collides with a tool key.
+ * Zoom chords are matched on both `key` and `code`: keyboards disagree about
+ * which one carries "+", and checking only one is what made Ctrl + "+" look
+ * dead for some users.
  */
+const ev = (key: string, code: string, mods: Partial<KeyboardEvent> = { ctrlKey: true }) =>
+  ({ key, code, ctrlKey: false, metaKey: false, altKey: false, ...mods }) as KeyboardEvent;
 
-describe('shape shortcut table', () => {
-  it('binds every shape in the registry, and nothing that is not one', () => {
-    const kinds = new Set(SHAPE_LIST.map((d) => d.id));
-    for (const def of SHAPE_LIST) {
-      expect(
-        shortcutForShape(def.id),
-        `shape "${def.id}" has no keyboard binding`,
-      ).toBeTruthy();
-    }
-    for (const s of SHAPE_SHORTCUTS) {
-      expect(kinds.has(s.kind), `binding for unknown shape "${s.kind}"`).toBe(true);
-    }
-    expect(SHAPE_SHORTCUTS).toHaveLength(SHAPE_LIST.length);
+describe('zoom chord recognition', () => {
+  it('reads zoom in from every spelling', () => {
+    expect(zoomIntent(ev('=', 'Equal'))).toBe('in');
+    expect(zoomIntent(ev('+', 'Equal'))).toBe('in');
+    expect(zoomIntent(ev('+', 'NumpadAdd'))).toBe('in');
+    expect(zoomIntent(ev('Add', 'NumpadAdd'))).toBe('in');
+    expect(zoomIntent(ev('+', 'BracketRight'))).toBe('in'); // German layout
+    expect(zoomIntent(ev('=', 'Equal', { metaKey: true }))).toBe('in');
   });
 
-  it('gives every shape a distinct chord', () => {
-    const seen = new Map<string, string>();
-    for (const s of SHAPE_SHORTCUTS) {
-      const chord = `${s.shift ? 'shift+' : ''}${s.letter}`;
-      expect(
-        seen.has(chord),
-        `${s.kind} and ${seen.get(chord)} both claim ${chord}`,
-      ).toBe(false);
-      seen.set(chord, s.kind);
-    }
+  it('reads zoom out, reset and fit', () => {
+    expect(zoomIntent(ev('-', 'Minus'))).toBe('out');
+    expect(zoomIntent(ev('_', 'Minus'))).toBe('out');
+    expect(zoomIntent(ev('-', 'NumpadSubtract'))).toBe('out');
+    expect(zoomIntent(ev('0', 'Digit0'))).toBe('reset');
+    expect(zoomIntent(ev('0', 'Numpad0'))).toBe('reset');
+    expect(zoomIntent(ev('1', 'Digit1'))).toBe('fit');
   });
 
-  it('never claims a letter the tools already own', () => {
-    for (const s of SHAPE_SHORTCUTS) {
-      if (s.shift) continue; // Shift+V does not collide with V.
-      expect(
-        RESERVED_TOOL_KEYS[s.letter.toLowerCase()],
-        `${s.kind} claims the reserved tool key ${s.letter}`,
-      ).toBeUndefined();
-    }
-  });
-
-  it('uses only single letters A-Z', () => {
-    for (const s of SHAPE_SHORTCUTS) {
-      expect(s.letter).toMatch(/^[A-Z]$/);
-    }
+  it('ignores the same keys without Ctrl/Cmd, or with Alt', () => {
+    expect(zoomIntent(ev('=', 'Equal', {}))).toBeNull();
+    expect(zoomIntent(ev('-', 'Minus', {}))).toBeNull();
+    expect(zoomIntent(ev('=', 'Equal', { ctrlKey: true, altKey: true }))).toBeNull();
+    expect(zoomIntent(ev('z', 'KeyZ'))).toBeNull();
   });
 });
 
-describe('resolving a keystroke', () => {
-  it('accepts upper and lower case as the same key', () => {
-    expect(shapeForKey('r', false)?.kind).toBe('rectangle');
-    // Caps Lock: the key is "R" but shift is not held.
-    expect(shapeForKey('R', false)?.kind).toBe('rectangle');
+describe('shortcut reference', () => {
+  it('lists no shape letters: shapes are placed from the palette only', () => {
+    const singleLetters = SHORTCUTS.filter((s) => /^[A-Z]$/.test(s.keys)).map((s) => s.keys);
+    expect(singleLetters.sort()).toEqual(['C', 'H', 'V']);
+    expect(SHORTCUTS.some((s) => /A\s*[–-]\s*Z/.test(s.keys))).toBe(false);
   });
 
-  it('keeps the shift tier separate from the plain tier', () => {
-    expect(shapeForKey('m', false)?.kind).toBe('manual-input');
-    expect(shapeForKey('M', true)?.kind).toBe('manual-operation');
-    expect(shapeForKey('m', true)?.kind).toBe('manual-operation');
-  });
-
-  it('resolves one shape per bound chord, round trip', () => {
-    for (const s of SHAPE_SHORTCUTS) {
-      expect(shapeForKey(s.letter, s.shift)?.kind).toBe(s.kind);
-      expect(shapeForKey(s.letter.toLowerCase(), s.shift)?.kind).toBe(s.kind);
-    }
-  });
-
-  it('ignores keys that are not letters', () => {
-    for (const key of ['Enter', 'Escape', 'ArrowUp', '1', '?', '-', ' ', 'F2']) {
-      expect(shapeForKey(key, false)).toBeUndefined();
-      expect(shapeForKey(key, true)).toBeUndefined();
-    }
-  });
-
-  it('leaves the tool letters unclaimed', () => {
-    for (const letter of Object.keys(RESERVED_TOOL_KEYS)) {
-      expect(shapeForKey(letter, false)).toBeUndefined();
-    }
-  });
-});
-
-describe('how a binding is displayed', () => {
-  it('renders a plain letter bare and a shift chord with the shift glyph', () => {
-    const rect = shortcutForShape('rectangle')!;
-    const manualOp = shortcutForShape('manual-operation')!;
-    expect(shortcutLabel(rect)).toBe('R');
-    expect(shortcutLabel(manualOp)).toBe('⇧M');
-    expect(shortcutSpoken(rect)).toBe('R');
-    expect(shortcutSpoken(manualOp)).toBe('Shift + M');
-    expect(shortcutAria(rect)).toBe('R');
-    expect(shortcutAria(manualOp)).toBe('Shift+M');
-  });
-
-  it('lists every registry shape for the help dialog, in palette order', () => {
-    const rows = shapeShortcutRows();
-    expect(rows.map((r) => r.kind)).toEqual(SHAPE_LIST.map((d) => d.id));
-    expect(rows.every((r) => r.shortcut)).toBe(true);
-    // The label shown is the registry's, so the two can never disagree.
-    expect(rows[0].label).toBe(SHAPE_LIST[0].label);
+  it('documents the zoom chords', () => {
+    const text = SHORTCUTS.map((s) => s.keys).join(' ');
+    expect(text).toContain('Ctrl/Cmd + +');
+    expect(text).toContain('Ctrl/Cmd + -');
+    expect(text).toContain('Ctrl/Cmd + 0');
   });
 });

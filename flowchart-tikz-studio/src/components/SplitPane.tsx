@@ -13,7 +13,7 @@ interface Props {
 export function SplitPane({
   left,
   right,
-  initial = 460,
+  initial = typeof window !== 'undefined' ? Math.round(Math.min(440, Math.max(320, window.innerWidth * 0.27))) : 400,
   min = 280,
   max = 900,
   storageKey = 'flowchart-tikz-studio:split',
@@ -65,6 +65,7 @@ export function SplitPane({
         role="separator"
         aria-orientation="vertical"
         tabIndex={0}
+        title="Drag to resize the code panel"
         onPointerDown={() => {
           dragging.current = true;
           document.body.style.cursor = 'col-resize';

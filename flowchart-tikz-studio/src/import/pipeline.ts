@@ -118,7 +118,7 @@ export async function runImport(input: PipelineInput, ctx: PipelineContext): Pro
       throw new ImportError('invalid-file', err instanceof LoadError ? err.message : 'The diagram file could not be read.');
     }
     await stage('convert');
-    report.add('converted', 'Flowchart Studio diagram imported without conversion.');
+    report.add('converted', 'FlowTikZ diagram imported without conversion.');
     return finish(diagram, undefined, undefined, undefined);
   }
 

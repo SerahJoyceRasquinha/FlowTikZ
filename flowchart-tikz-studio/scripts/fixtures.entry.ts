@@ -8,6 +8,17 @@ import { normalizeOrder } from '../src/model/diagram';
 import { sampleDiagram } from '../src/model/sample';
 import { SHAPE_LIST } from '../src/model/shapes';
 import type { Diagram } from '../src/model/types';
+import { chartGallery } from '../src/charts/gallery';
+import {
+  allComponents,
+  chemGallery,
+  circuitGallery,
+  mathGallery,
+  mixedGallery,
+  moleculeGallery,
+  physicsGallery,
+  symbolGallery,
+} from '../src/science/gallery';
 
 const std = (d: Diagram) =>
   generateLatex(d, { mode: 'standalone', comments: true }).code;
@@ -222,6 +233,71 @@ const controlCode = [
   std(control.diagram),
 ].join('\n');
 
+/* 8. Every chart type and option, side by side, plus a flowchart pointing at one. */
+function allCharts(): Diagram {
+  const d = emptyDiagram('All charts');
+  chartGallery().forEach((g, i) => {
+    const id = `c${i + 1}`;
+    const n = makeNode('chart', (i % 3) * 620, Math.floor(i / 3) * 420, { id, w: 560, h: 360 });
+    n.chart = g.spec;
+    d.nodes[id] = n;
+    d.order.push(id);
+  });
+  const box = makeNode('process', -260, 120, { id: 'p1', text: 'Raw data' });
+  d.nodes.p1 = box;
+  d.order.push('p1');
+  d.edges.e1 = makeEdge({ id: 'e1', source: { nodeId: 'p1', port: 'e' }, target: { nodeId: 'c1', port: 'w' } });
+  d.order.push('e1');
+  normalizeOrder(d);
+  return d;
+}
+
+/* 9. One chart per file, each in snippet form inside a minimal article. */
+function chartInArticle(): string {
+  const d = emptyDiagram('Chart in an article');
+  const n = makeNode('chart', 0, 0, { id: 'c1', w: 560, h: 360 });
+  n.chart = chartGallery().find((g) => g.name === 'tricky-text')!.spec;
+  d.nodes.c1 = n;
+  d.order.push('c1');
+  const snippet = generateLatex(d, { mode: 'snippet', comments: true }).code;
+  return [
+    '\\documentclass{article}',
+    '\\usepackage[T1]{fontenc}',
+    '\\usepackage[utf8]{inputenc}',
+    '\\usepackage{xcolor}',
+    '\\usepackage{tikz}',
+    '\\usepackage{pgfplots}',
+    '\\pgfplotsset{compat=1.18}',
+    '\\begin{document}',
+    'Figure~\\ref{fig:c} was pasted from FlowTikZ as a snippet.',
+    '\\begin{figure}[h]\\centering',
+    snippet,
+    '\\caption{Pasted chart}\\label{fig:c}',
+    '\\end{figure}',
+    '\\end{document}',
+  ].join('\n');
+}
+
+/* Everything at once, pasted into an ordinary article: the snippet workflow. */
+function scienceInArticle(): string {
+  const r = generateLatex(mixedGallery(), { mode: 'snippet', comments: true });
+  return [
+    '\\documentclass{article}',
+    '\\usepackage[T1]{fontenc}',
+    '\\usepackage[utf8]{inputenc}',
+    '\\usepackage{amsmath,amssymb}',
+    '\\usepackage{xcolor}',
+    '\\usepackage{tikz}',
+    '\\usepackage[american]{circuitikz}',
+    '\\usepackage[version=4]{mhchem}',
+    '\\usepackage{chemfig}',
+    '\\usetikzlibrary{arrows.meta,shapes.geometric}',
+    '\\begin{document}',
+    r.code,
+    '\\end{document}',
+  ].join('\n');
+}
+
 export const fixtures = [
   { name: '01-example', code: std(example) },
   { name: '02-all-shapes', code: std(allShapes()) },
@@ -230,4 +306,15 @@ export const fixtures = [
   { name: '05-empty', code: std(empty) },
   { name: '06-scaled', code: std(tiny()) },
   { name: '07-geometry-control', code: controlCode },
+  { name: '08-all-charts', code: std(allCharts()) },
+  { name: '09-chart-snippet-in-article', code: chartInArticle() },
+  { name: '10-mathematics', code: std(mathGallery()) },
+  { name: '11-all-symbols', code: std(symbolGallery()) },
+  { name: '12-all-components', code: std(allComponents()) },
+  { name: '13-circuits', code: std(circuitGallery()) },
+  { name: '14-physics', code: std(physicsGallery()) },
+  { name: '15-chemistry', code: std(chemGallery()) },
+  { name: '16-molecules', code: std(moleculeGallery()) },
+  { name: '17-mixed', code: std(mixedGallery()) },
+  { name: '18-science-snippet-in-article', code: scienceInArticle() },
 ];

@@ -1,8 +1,8 @@
 {
   "name": "flowchart-tikz-studio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Visual flowchart editor with real-time, Overleaf-ready LaTeX/TikZ generation, and import of images, SVG and draw.io diagrams as editable flowcharts.",
+  "description": "Visual editor for flowcharts, data charts, equations, circuits and chemical structures with real-time, Overleaf-ready LaTeX/TikZ generation, and import of images, SVG and draw.io diagrams as editable flowcharts.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,9 @@
     "fixtures:import": "python3 scripts/make-import-fixtures.py"
   },
   "dependencies": {
+    "@mathjax/mathjax-mhchem-font-extension": "^4.1.3",
+    "@mathjax/mathjax-tex-font": "^4.1.3",
+    "@mathjax/src": "^4.1.3",
     "@tesseract.js-data/eng": "^1.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

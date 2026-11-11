@@ -24,6 +24,8 @@ import { TextEditorOverlay } from './TextEditorOverlay';
 import { portAnchor } from '../model/routing';
 import { EmptyState } from '../components/EmptyState';
 import { useImport } from '../state/importStore';
+import { isCircuitKind } from '../science/physics/circuits';
+import { openScienceEditor, SHAPE_DRAG_TYPE } from '../science/editing';
 
 type Interaction =
   | { type: 'none' }
@@ -625,8 +627,10 @@ export function CanvasStage({ onReady }: Props) {
         if (!n || n.locked) continue;
         n.x = x + (start.x - box.x) * sx;
         n.y = y + (start.y - box.y) * sy;
-        n.w = Math.max(MIN_SIZE, start.w * sx);
-        n.h = Math.max(MIN_SIZE, start.h * sy);
+        // Charts need room for axes and labels; below this they stop being legible.
+        const min = n.kind === 'chart' ? 120 : n.kind === 'circuit.junction' || n.kind === 'circuit.terminal' ? 6 : MIN_SIZE;
+        n.w = Math.max(min, start.w * sx);
+        n.h = Math.max(min, start.h * sy);
       }
     });
   };
@@ -666,7 +670,18 @@ export function CanvasStage({ onReady }: Props) {
         const overNode = nodeAt(world);
         const targetNodeId =
           near?.nodeId ?? (overNode && overNode.id !== it.fromNodeId ? overNode.id : null);
-        if (targetNodeId) {
+        // A wire dropped on another wire ties in with a junction dot.
+        const overWire = !targetNodeId && isCircuitKind(source.kind) ? pickAt(world) : null;
+        const wireHit = overWire?.kind === 'edge' && d.edges[overWire.id]?.wire ? overWire.id : null;
+        if (wireHit) {
+          const junction = s.addJunctionOnWire(wireHit, world);
+          if (junction) {
+            s.addEdge({
+              source: { nodeId: it.fromNodeId, port: it.fromPort },
+              target: { nodeId: junction, port: 'auto' },
+            });
+          }
+        } else if (targetNodeId) {
           s.addEdge({
             source: { nodeId: it.fromNodeId, port: it.fromPort },
             target: { nodeId: targetNodeId, port: near?.port ?? 'auto' },
@@ -735,7 +750,9 @@ export function CanvasStage({ onReady }: Props) {
     const s = store.getState();
     const picked = pickAt(world);
     if (picked?.kind === 'node') {
-      s.setEditingNode(picked.id);
+      // A chart has no free text: double-click opens its settings instead.
+      if (s.doc.nodes[picked.id]?.kind === 'chart') s.requestChartFocus(picked.id);
+      else if (!openScienceEditor(s.doc.nodes[picked.id])) s.setEditingNode(picked.id);
       return;
     }
     if (picked?.kind === 'edge') {
@@ -823,6 +840,21 @@ export function CanvasStage({ onReady }: Props) {
       role="application"
       aria-label="Drawing board"
       onFocus={() => setBoardFocused(true)}
+      onDragOver={(e) => {
+        if (e.dataTransfer?.types?.includes(SHAPE_DRAG_TYPE)) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }
+      }}
+      onDrop={(e) => {
+        const kind = e.dataTransfer?.getData(SHAPE_DRAG_TYPE);
+        if (!kind) return;
+        e.preventDefault();
+        refreshRect();
+        const s = store.getState();
+        s.armShape(null);
+        s.addNode(kind, toWorld(e.clientX, e.clientY));
+      }}
       onBlur={(e) => {
         // Focus moving to the text overlay is still focus on the board.
         const next = e.relatedTarget as HTMLElement | null;
@@ -946,7 +978,7 @@ export function CanvasStage({ onReady }: Props) {
             bounds={bounds}
             zoom={view.zoom}
             showHandles={selectedNodes.length > 0 && it.type !== 'connect'}
-            rotatable={selectedNodes.length > 0}
+            rotatable={selectedNodes.length > 0 && !selectedNodes.some((id) => doc.nodes[id].kind === 'chart')}
             marquee={
               it.type === 'marquee' ? normalizeRect(it.origin, it.current) : null
             }

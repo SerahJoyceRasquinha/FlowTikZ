@@ -8,6 +8,8 @@ import {
 } from '../model/defaults';
 import { normalizeOrder } from '../model/diagram';
 import { coerceMeta, coercePath } from '../model/meta';
+import { coerceChart } from '../charts/coerce';
+import { coerceScience } from '../science/coerce';
 
 /**
  * Save file format.
@@ -57,6 +59,19 @@ function coerceNode(raw: any, id: string): Node | null {
   // saved before they existed round-trip byte for byte.
   const path = coercePath(raw.path);
   if (path) n.path = path;
+  if (n.kind === 'chart') {
+    const chart = coerceChart(raw.chart);
+    // A chart whose data could not be read is dropped rather than shown empty.
+    if (!chart) return null;
+    n.chart = chart;
+    n.rotation = 0;
+  }
+  // Absent for everything except scientific objects; such files stay identical.
+  const science = coerceScience(raw.science);
+  if (science) n.science = science;
+  else if (n.kind === 'math' || n.kind === 'chem' || n.kind === 'molecule') return null;
+  if (raw.flipH === true) n.flipH = true;
+  if (raw.flipV === true) n.flipV = true;
   const meta = coerceMeta(raw.meta);
   if (meta) n.meta = meta;
   return n;
@@ -83,6 +98,7 @@ function coerceEdge(raw: any, id: string): Edge | null {
     label: raw.label,
     z: Number(raw.z) || 0,
   };
+  if (raw.wire === true) edge.wire = true;
   const meta = coerceMeta(raw.meta);
   if (meta) edge.meta = meta;
   return edge;

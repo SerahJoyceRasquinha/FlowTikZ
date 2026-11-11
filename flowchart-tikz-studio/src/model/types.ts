@@ -15,6 +15,13 @@
  * du -> cm using `Diagram.settings.unitsPerCm` and flips the y axis.
  */
 
+/*
+ * A data chart lives on an ordinary node (`kind: 'chart'`). Its spec type is
+ * defined with the chart modules and only referenced here (type-only import).
+ */
+import type { ChartSpec } from '../charts/types';
+import type { ScienceSpec } from '../science/types';
+
 export interface Point {
   x: number;
   y: number;
@@ -137,6 +144,13 @@ export interface Node {
    * the shape registry.
    */
   path?: NormalizedSeg[];
+  /** Present on `kind === 'chart'` nodes: the data, field choices and styling. */
+  chart?: ChartSpec;
+  /** Formula, molecule or circuit data; see `science/types.ts`. */
+  science?: ScienceSpec;
+  /** Mirror the drawing left-right or top-bottom. Only set by flippable kinds. */
+  flipH?: boolean;
+  flipV?: boolean;
   meta?: ObjectMeta;
 }
 
@@ -151,6 +165,8 @@ export type PortId =
   | 'se'
   | 'sw'
   | 'c'
+  /** Named terminals of electrical components, e.g. `B`, `plus`, `wiper`. */
+  | (string & {})
   /** "auto" picks the nearest sensible port each time geometry changes. */
   | 'auto';
 
@@ -212,6 +228,8 @@ export interface Edge {
   opacity: number;
   /** Corner radius for orthogonal routing. */
   cornerRadius: number;
+  /** An electrical wire: routed tightly so facing terminals join cleanly. */
+  wire?: boolean;
   label?: EdgeLabel;
   z: number;
   meta?: ObjectMeta;

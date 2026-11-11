@@ -115,6 +115,70 @@ function dedupe(points: Point[]): Point[] {
   return out;
 }
 
+/** Drop interior points that lie on a straight run. */
+function simplify(points: Point[]): Point[] {
+  return points.filter((p, i) => {
+    if (i === 0 || i === points.length - 1) return true;
+    const a = points[i - 1];
+    const b = points[i + 1];
+    const cross = (p.x - a.x) * (b.y - p.y) - (p.y - a.y) * (b.x - p.x);
+    const dot = (p.x - a.x) * (b.x - p.x) + (p.y - a.y) * (b.y - p.y);
+    return Math.abs(cross) > 0.01 || dot < 0;
+  });
+}
+
+const snapWire = (v: number) => Math.round(v / 5) * 5;
+
+/**
+ * Right-angle route for an electrical wire. The general elbow is fine between
+ * boxes, but a wire must not run back through the component it came from, so
+ * the cases where a plain elbow would do that take the way round.
+ */
+function wirePoints(a: Anchor, b: Anchor): Point[] {
+  const between = sub(b.p, a.p);
+  const facesB = a.dir.x * between.x + a.dir.y * between.y > 0;
+  const facesA = b.dir.x * -between.x + b.dir.y * -between.y > 0;
+  const stub = facesA && facesB ? 0 : 14;
+  const s0 = add(a.p, scale(a.dir, stub));
+  const s1 = add(b.p, scale(b.dir, stub));
+  const horiz0 = Math.abs(a.dir.x) >= Math.abs(a.dir.y);
+  const horiz1 = Math.abs(b.dir.x) >= Math.abs(b.dir.y);
+  let mid: Point[];
+
+  if (horiz0 !== horiz1) {
+    const corner = horiz0 ? { x: s1.x, y: s0.y } : { x: s0.x, y: s1.y };
+    const dot = (p: Point, q: Point, d: Point) => (p.x - q.x) * d.x + (p.y - q.y) * d.y;
+    // A corner behind either terminal would cross that component's body.
+    const blocked = dot(corner, s1, b.dir) < -0.01 || dot(corner, s0, a.dir) < -0.01;
+    mid = blocked ? [horiz0 ? { x: s0.x, y: s1.y } : { x: s1.x, y: s0.y }] : [corner];
+  } else if (horiz0) {
+    const same = a.dir.x * b.dir.x > 0;
+    if (same) {
+      const x = a.dir.x > 0 ? Math.max(s0.x, s1.x) : Math.min(s0.x, s1.x);
+      mid = [{ x, y: s0.y }, { x, y: s1.y }];
+    } else if (facesA && facesB) {
+      const x = snapWire((s0.x + s1.x) / 2);
+      mid = [{ x, y: s0.y }, { x, y: s1.y }];
+    } else {
+      const y = Math.min(a.p.y, b.p.y) - 40;
+      mid = [{ x: s0.x, y }, { x: s1.x, y }];
+    }
+  } else {
+    const same = a.dir.y * b.dir.y > 0;
+    if (same) {
+      const y = a.dir.y > 0 ? Math.max(s0.y, s1.y) : Math.min(s0.y, s1.y);
+      mid = [{ x: s0.x, y }, { x: s1.x, y }];
+    } else if (facesA && facesB) {
+      const y = snapWire((s0.y + s1.y) / 2);
+      mid = [{ x: s0.x, y }, { x: s1.x, y }];
+    } else {
+      const x = Math.max(a.p.x, b.p.x) + 40;
+      mid = [{ x, y: s0.y }, { x, y: s1.y }];
+    }
+  }
+  return simplify(dedupe([a.p, s0, ...mid, s1, b.p]));
+}
+
 function elbowPoints(a: Anchor, b: Anchor): Point[] {
   const horiz0 = Math.abs(a.dir.x) >= Math.abs(a.dir.y);
   const horiz1 = Math.abs(b.dir.x) >= Math.abs(b.dir.y);
@@ -272,7 +336,9 @@ export function routeEdge(d: Diagram, edge: Edge): Route | null {
       const pts =
         waypoints.length > 0
           ? dedupe([a.p, ...waypoints, b.p])
-          : elbowPoints(a, b);
+          : edge.wire
+            ? wirePoints(a, b)
+            : elbowPoints(a, b);
       segs =
         edge.routing === 'rounded-orthogonal'
           ? roundPolyline(pts, edge.cornerRadius || 10)

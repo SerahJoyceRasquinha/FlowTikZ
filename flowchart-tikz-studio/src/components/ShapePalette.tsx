@@ -1,20 +1,36 @@
 import { useMemo, useState } from 'react';
 import { SHAPE_LIST, SHAPE_CATEGORIES, ShapeDef } from '../model/shapes';
 import { segsToSvgPath } from '../model/path';
-import {
-  shortcutAria,
-  shortcutForShape,
-  shortcutLabel,
-  shortcutSpoken,
-} from '../model/shortcuts';
 import { useEditor } from '../state/store';
+import type { PaletteDomain } from '../state/store';
+import { CIRCUIT_DEFS, CIRCUIT_GROUPS, CIRCUIT_BY_ID } from '../science/physics/circuits';
+import { PHYSICS_GROUPS, PHYSICS_SHAPE_DEFS } from '../science/physics/diagramShapes';
+import { SHAPE_DEFS } from '../model/shapes';
+import { SHAPE_DRAG_TYPE } from '../science/editing';
 
 /** Miniature of a shape, drawn with the very same outline function. */
 function ShapeThumb({ def }: { def: ShapeDef }) {
-  const w = 46;
-  const h = 30;
+  const circuit = CIRCUIT_BY_ID[def.id];
+  // Science parts are drawn at their own proportions, then fitted to the tile.
+  const w = circuit || def.flippable ? def.defaultSize.w : 46;
+  const h = circuit || def.flippable ? def.defaultSize.h : 30;
   const outline = def.outline(w, h);
   const decorations = def.decorations ? def.decorations(w, h) : [];
+  if (circuit || def.flippable) {
+    const m = Math.max(w, h) * 0.08;
+    const bodies = def.bodies ? def.bodies(w, h) : [];
+    const solids = def.solids ? def.solids(w, h) : [];
+    const stroke = Math.max(w / 46, h / 30) * 1.2;
+    return (
+      <svg viewBox={`${-m} ${-m} ${w + 2 * m} ${h + 2 * m}`} width={50} height={34} aria-hidden="true">
+        <path d={segsToSvgPath(outline)} fill={outline.some((s) => s.c === 'Z') ? 'var(--paper)' : 'none'} stroke="currentColor" strokeWidth={stroke} />
+        {bodies.map((d, i) => <path key={`b${i}`} d={segsToSvgPath(d)} fill="var(--paper)" stroke="currentColor" strokeWidth={stroke} />)}
+        {decorations.map((d, i) => <path key={i} d={segsToSvgPath(d)} fill="none" stroke="currentColor" strokeWidth={stroke} />)}
+        {solids.map((d, i) => <path key={`s${i}`} d={segsToSvgPath(d)} fill="currentColor" stroke="none" />)}
+        {circuit?.glyph && <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="central" fill="currentColor" style={{ fontSize: h * 0.42 }}>{circuit.glyph}</text>}
+      </svg>
+    );
+  }
   const closed = outline.some((s) => s.c === 'Z');
   const fill = def.noOutline && closed ? 'none' : 'var(--paper)';
   return (
@@ -50,6 +66,13 @@ function ShapeThumb({ def }: { def: ShapeDef }) {
   );
 }
 
+const DOMAIN_LABEL: Record<PaletteDomain, string> = { flow: 'Flow', circuit: 'Circuit', physics: 'Physics' };
+const DOMAIN_TITLE: Record<PaletteDomain, string> = {
+  flow: 'Flowchart symbols',
+  circuit: 'Circuit components',
+  physics: 'Physics diagram parts',
+};
+
 export function ShapePalette() {
   const pendingShape = useEditor((s) => s.pendingShape);
   const armShape = useEditor((s) => s.armShape);
@@ -57,22 +80,50 @@ export function ShapePalette() {
   const view = useEditor((s) => s.view);
   const [filter, setFilter] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // The whole palette can fold away to a thin rail, giving the canvas room.
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem('flowtikz:palette-hidden') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleHidden = (v: boolean) => {
+    setHidden(v);
+    try {
+      localStorage.setItem('flowtikz:palette-hidden', v ? '1' : '0');
+    } catch {
+      /* storage may be disabled */
+    }
+  };
+
+  const domain = useEditor((s) => s.paletteDomain);
+  const setDomain = useEditor((s) => s.setPaletteDomain);
 
   const groups = useMemo(() => {
     const q = filter.trim().toLowerCase();
+    const hit = (label: string, id: string, keywords = '') =>
+      !q || label.toLowerCase().includes(q) || id.includes(q) || keywords.includes(q);
+    if (domain === 'circuit') {
+      return CIRCUIT_GROUPS.map((cat) => ({
+        cat: cat as string,
+        shapes: CIRCUIT_DEFS.filter((d) => d.group === cat && hit(d.label, d.id, d.keywords)).map((d) => SHAPE_DEFS[d.id]),
+      })).filter((g) => g.shapes.length > 0);
+    }
+    if (domain === 'physics') {
+      return PHYSICS_GROUPS.map((cat) => ({
+        cat: cat as string,
+        shapes: PHYSICS_SHAPE_DEFS.filter((d) => d.group === cat && hit(d.label, d.id, d.keywords)) as ShapeDef[],
+      })).filter((g) => g.shapes.length > 0);
+    }
     return SHAPE_CATEGORIES.map((cat) => ({
-      cat,
+      cat: cat as string,
       shapes: SHAPE_LIST.filter((d) => {
         if (d.category !== cat) return false;
-        if (!q) return true;
-        // A one-character query is read as "which shape is on this key?",
-        // which is the fastest way to learn the bindings.
-        const sc = shortcutForShape(d.id);
-        if (q.length === 1 && sc && sc.letter.toLowerCase() === q) return true;
-        return d.label.toLowerCase().includes(q) || d.id.includes(q);
+        return hit(d.label, d.id);
       }),
     })).filter((g) => g.shapes.length > 0);
-  }, [filter]);
+  }, [filter, domain]);
 
   /** Drop a shape into the middle of the current viewport. */
   const placeCentre = (kind: string) => {
@@ -83,13 +134,36 @@ export function ShapePalette() {
     addNode(kind, { x: cx, y: cy });
   };
 
+  if (hidden) {
+    return (
+      <aside className="palette rail" aria-label="Shape library (collapsed)" data-tour="palette">
+        <button className="rail-btn" onClick={() => toggleHidden(false)} title="Show the flowchart symbols">
+          <span aria-hidden="true">»</span>
+          <span className="rail-label">Symbols</span>
+        </button>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="palette" aria-label="Shape library">
+    <aside className={`palette${domain === 'flow' ? '' : ' palette-sci'}`} aria-label="Shape library" data-tour="palette">
       <div className="palette-head">
-        <span className="eyebrow">Symbols</span>
+        <div className="palette-title">
+          <span className="eyebrow">{DOMAIN_TITLE[domain]}</span>
+          <button className="icon-btn" onClick={() => toggleHidden(true)} title="Hide the symbols to make the canvas wider" aria-label="Hide symbols">
+            «
+          </button>
+        </div>
+        <div className="segmented small palette-domains" role="group" aria-label="Symbol set">
+          {(['flow', 'circuit', 'physics'] as PaletteDomain[]).map((d) => (
+            <button key={d} className={domain === d ? 'on' : ''} onClick={() => setDomain(d)} title={DOMAIN_TITLE[d]} aria-pressed={domain === d}>
+              {DOMAIN_LABEL[d]}
+            </button>
+          ))}
+        </div>
         <input
           value={filter}
-          placeholder="Filter shapes"
+          placeholder="Search symbols…"
           onChange={(e) => setFilter(e.target.value)}
           onKeyDown={(e) => e.stopPropagation()}
         />
@@ -109,27 +183,24 @@ export function ShapePalette() {
             {!collapsed[g.cat] && (
               <div className="palette-grid">
                 {g.shapes.map((def) => {
-                  const sc = shortcutForShape(def.id);
-                  const keyHint = sc ? ` — press ${shortcutSpoken(sc)}` : '';
                   return (
                     <button
                       key={def.id}
                       className={`shape-btn${pendingShape === def.id ? ' on' : ''}`}
-                      title={`${def.label}${keyHint}. Click to arm, double-click to place.`}
-                      aria-label={`${def.label}${keyHint}`}
-                      aria-keyshortcuts={sc ? shortcutAria(sc) : undefined}
+                      title={`${def.label}: drag onto the canvas, or click then click the canvas. Double-click to drop it in the middle.`}
+                      aria-label={def.label}
                       aria-pressed={pendingShape === def.id}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(SHAPE_DRAG_TYPE, def.id);
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
                       onClick={() => armShape(pendingShape === def.id ? null : def.id)}
                       onDoubleClick={() => {
                         armShape(null);
                         placeCentre(def.id);
                       }}
                     >
-                      {sc && (
-                        <span className="shape-key" aria-hidden="true">
-                          {shortcutLabel(sc)}
-                        </span>
-                      )}
                       <ShapeThumb def={def} />
                       <span className="shape-name">{def.label}</span>
                     </button>
@@ -143,7 +214,9 @@ export function ShapePalette() {
       <p className="palette-hint">
         {pendingShape
           ? 'Click the canvas to place it.'
-          : 'Click a symbol, or press its letter with the board focused.'}
+          : domain === 'circuit'
+            ? 'Drag a part onto the canvas, then drag from a round terminal to another to wire it. R turns the selection.'
+            : 'Click a symbol, then click the canvas. Double-click a symbol to drop it in the middle.'}
       </p>
     </aside>
   );

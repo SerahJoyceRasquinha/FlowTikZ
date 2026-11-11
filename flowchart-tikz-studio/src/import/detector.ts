@@ -37,7 +37,7 @@ export const IMPORT_ACCEPT = [
 
 /** Human-readable list for the UI. */
 export const SUPPORTED_SUMMARY =
-  'PNG, JPG, WEBP, BMP, GIF, AVIF images · SVG · draw.io / diagrams.net (.drawio, .xml, draw.io SVG/PNG) · Excalidraw · Flowchart Studio JSON';
+  'PNG, JPG, WEBP, BMP, GIF, AVIF images · SVG · draw.io / diagrams.net (.drawio, .xml, draw.io SVG/PNG) · Excalidraw · FlowTikZ diagram JSON';
 
 export function extensionOf(name: string): string {
   const m = /\.([A-Za-z0-9]+)$/.exec(name.trim());
@@ -130,7 +130,7 @@ export async function detectFormat(input: DetectInput): Promise<DetectedFormat> 
       return { format: 'excalidraw', mime: 'application/json', label: 'Excalidraw drawing' };
     }
     if (/"format"\s*:\s*"flowchart-tikz-studio"/.test(head) || /"nodes"\s*:/.test(head)) {
-      return { format: 'studio-json', mime: 'application/json', label: 'Flowchart Studio diagram' };
+      return { format: 'studio-json', mime: 'application/json', label: 'FlowTikZ diagram' };
     }
     if (/"objects"\s*:/.test(head) && /"connectors"\s*:/.test(head)) {
       return { format: 'ir-json', mime: 'application/json', label: 'Structured diagram JSON' };

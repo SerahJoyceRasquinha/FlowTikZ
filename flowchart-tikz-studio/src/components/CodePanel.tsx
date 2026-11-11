@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react';
+import { Icon } from './Icon';
 import { useEditor } from '../state/store';
 import { generateLatex, GeneratedBlock } from '../latex/generator';
 import { tokenizeDocument, findMatches } from '../latex/highlight';
@@ -138,22 +139,24 @@ export function CodePanel() {
   const filename = slugify(doc.name);
 
   return (
-    <section className="code-panel" aria-label="Generated LaTeX">
+    <section className="code-panel" aria-label="Generated LaTeX" data-tour="code">
       <header className="panel-head">
         <div className="panel-title">
-          <span className="eyebrow">TikZ output</span>
+          <span className="eyebrow">LaTeX output</span>
           <h2>{outputMode === 'standalone' ? 'Standalone document' : 'Picture snippet'}</h2>
         </div>
-        <div className="segmented" role="group" aria-label="Output mode">
+        <div className="segmented" role="group" aria-label="Output mode" data-tour="output-mode">
           <button
             className={outputMode === 'standalone' ? 'on' : ''}
             onClick={() => setOutputMode('standalone')}
+            title="A complete document: paste it into a new Overleaf project and compile"
           >
             Standalone
           </button>
           <button
             className={outputMode === 'snippet' ? 'on' : ''}
             onClick={() => setOutputMode('snippet')}
+            title="Just the picture: drop it into a document you already have"
           >
             Snippet
           </button>
@@ -162,16 +165,20 @@ export function CodePanel() {
 
       <div className="code-actions">
         <button
-          className="btn"
+          className="btn success"
+          data-tour="copy"
+          title="Copy the LaTeX, then paste it into Overleaf"
           onClick={async () => {
             const ok = await copyToClipboard(result.code);
             setStatus(ok ? 'LaTeX copied to the clipboard.' : 'Copy failed. Select the code and copy manually.');
           }}
         >
-          Copy
+          <Icon name="copy" size={16} />
+          Copy LaTeX
         </button>
         <button
           className="btn"
+          title="Download the LaTeX as a .tex file"
           onClick={() => {
             downloadText(
               result.code,
@@ -181,11 +188,13 @@ export function CodePanel() {
             setStatus(`Saved ${filename}.tex`);
           }}
         >
+          <Icon name="download" size={16} />
           Download .tex
         </button>
         <button
           className={`btn${searchOpen ? ' on' : ''}`}
           onClick={() => setSearchOpen((v) => !v)}
+          title="Find text inside the LaTeX code"
         >
           Search
         </button>
@@ -241,11 +250,13 @@ export function CodePanel() {
       </div>
 
       <footer className={`issues${counts.errors ? ' has-error' : ''}`}>
+        {result.issues.length > 0 && result.packages.length > 1 && (
+          <span className="ok pkg-line">Packages: {result.packages.join(', ')}</span>
+        )}
         {result.issues.length === 0 ? (
           <span className="ok">
-            Ready to compile — {result.libraries.length
-              ? `libraries: ${result.libraries.join(', ')}`
-              : 'no extra TikZ libraries needed'}
+            Ready to compile — packages: {result.packages.join(', ')}
+            {result.libraries.length ? ` · TikZ libraries: ${result.libraries.join(', ')}` : ''}
           </span>
         ) : (
           <details open={counts.errors > 0}>

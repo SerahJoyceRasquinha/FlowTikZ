@@ -1,9 +1,12 @@
 import { memo } from 'react';
 import type { Node } from '../model/types';
-import { getShapeDef, nodeDecorations, nodeOutline } from '../model/shapes';
+import { getShapeDef, nodeBodies, nodeDecorations, nodeOutline, nodeSolids } from '../model/shapes';
 import { isClosed, segsToSvgPath } from '../model/path';
 import { dashArraySvg } from '../latex/styles';
 import { layoutNodeText, fontCss } from './textLayout';
+import { ChartView } from './ChartView';
+import { CircuitOverlay, FormulaContent, MoleculeContent } from './ScienceView';
+import { isCircuitKind } from '../science/physics/circuits';
 
 interface Props {
   node: Node;
@@ -58,7 +61,73 @@ export const ShapeView = memo(function ShapeView({
   // A shape with corrupt styling is skipped rather than allowed to throw; the
   // generator reports it as an error in the issues list.
   if (!node || !node.style || !node.textStyle) return null;
+  if (node.kind === 'chart' && node.chart) {
+    return (
+      <g
+        transform={`translate(${node.x} ${node.y})`}
+        opacity={hidden ? 0 : 1}
+        data-object-id={node.id}
+        data-kind="chart"
+      >
+        {!hidden && (
+          <rect data-ui="1" data-hit="shape" x={0} y={0} width={Math.max(0, node.w)} height={Math.max(0, node.h)} fill="transparent" pointerEvents="all" />
+        )}
+        <ChartView spec={node.chart} w={node.w} h={node.h} />
+        {(hovered || selected) && !hidden && (
+          <rect
+            data-ui="1"
+            x={0}
+            y={0}
+            width={node.w}
+            height={node.h}
+            fill="none"
+            stroke="var(--select)"
+            strokeOpacity={selected ? 0.35 : 0.75}
+            strokeWidth={1.5}
+            strokeDasharray="5 4"
+            pointerEvents="none"
+          />
+        )}
+      </g>
+    );
+  }
+  const typeset = node.science?.type === 'math' || node.science?.type === 'chem' || node.science?.type === 'molecule';
+  if (typeset) {
+    const st = node.style;
+    const stroked = node.science?.type !== 'molecule' && st.strokeStyle !== 'none' && st.strokeWidth > 0;
+    return (
+      <g
+        transform={`translate(${node.x} ${node.y}) rotate(${node.rotation} ${node.w / 2} ${node.h / 2})`}
+        opacity={hidden ? 0 : st.opacity}
+        data-object-id={node.id}
+        data-kind={node.kind}
+      >
+        {!hidden && (
+          <rect data-ui="1" data-hit="shape" x={0} y={0} width={Math.max(0, node.w)} height={Math.max(0, node.h)} fill="transparent" pointerEvents="all" />
+        )}
+        {(st.fillOpacity > 0 || stroked) && (
+          <rect
+            x={0}
+            y={0}
+            width={node.w}
+            height={node.h}
+            fill={st.fillOpacity > 0 ? st.fill : 'none'}
+            fillOpacity={st.fillOpacity}
+            stroke={stroked ? st.stroke : 'none'}
+            strokeWidth={stroked ? st.strokeWidth : 0}
+            strokeDasharray={stroked ? dashArraySvg(st.strokeStyle, st.strokeWidth).dasharray : undefined}
+          />
+        )}
+        {node.science?.type === 'molecule' ? <MoleculeContent node={node} /> : <FormulaContent node={node} />}
+        {(hovered || selected) && !hidden && (
+          <rect data-ui="1" x={0} y={0} width={node.w} height={node.h} fill="none" stroke="var(--select)" strokeOpacity={selected ? 0.35 : 0.75} strokeWidth={1.5} strokeDasharray="5 4" pointerEvents="none" />
+        )}
+      </g>
+    );
+  }
   const def = getShapeDef(node.kind);
+  const bodies = nodeBodies(node);
+  const solids = nodeSolids(node);
   const outline = nodeOutline(node);
   const decorations = nodeDecorations(node);
   const closed = isClosed(outline);
@@ -149,6 +218,10 @@ export const ShapeView = memo(function ShapeView({
         />
       )}
 
+      {bodies.map((b, i) => (
+        <path key={`b${i}`} d={segsToSvgPath(b)} fill={s.fill} fillOpacity={s.fillOpacity} {...strokeProps} />
+      ))}
+
       {decorations.map((dec, i) => (
         <path
           key={i}
@@ -157,6 +230,12 @@ export const ShapeView = memo(function ShapeView({
           {...strokeProps}
         />
       ))}
+
+      {solids.map((b, i) => (
+        <path key={`s${i}`} d={segsToSvgPath(b)} fill={s.stroke} fillOpacity={s.strokeOpacity} stroke="none" />
+      ))}
+
+      {isCircuitKind(node.kind) && <CircuitOverlay node={node} />}
 
       {layout && (
         <text
@@ -196,7 +275,7 @@ export const ShapeView = memo(function ShapeView({
           data-ui="1"
           d={textOnly || !closed ? rectPath(node.w, node.h) : d}
           fill="none"
-          stroke="var(--accent)"
+          stroke="var(--select)"
           strokeOpacity={0.75}
           strokeWidth={Math.max(2.4, s.strokeWidth * 1.7)}
           strokeLinejoin="round"

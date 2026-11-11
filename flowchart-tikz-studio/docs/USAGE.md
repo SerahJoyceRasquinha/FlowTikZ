@@ -4,21 +4,41 @@
 
 | Region | Purpose |
 | --- | --- |
-| Top bar | Document identity and the **Load example** button |
-| Toolbar | Tools, history, view, arrange, order, file and export actions |
+| Top bar | Document identity, **Take the tour** and **Load example** |
+| Toolbar | Tools (Select, Pan, Connect, Text), Chart from data, Undo/Redo, zoom, **View** menu (grid, snap), **File** menu (New, Open, Import diagram, Clear canvas), **Save**, **Export** menu, **Help** menu (Guided tour, Help & shortcuts) |
+| Selection bar | Floats above the canvas only while something is selected: Align, Arrange, Duplicate, Group/Ungroup, Lock, Delete |
 | Left panel | Generated LaTeX, with mode toggle, copy, download, search and issues |
-| Palette | 29 flowchart symbols, filterable, grouped by category |
+| Palette | 29 flowchart symbols, filterable, grouped by category; fold it away with « |
 | Canvas | The diagram, on white paper |
 | Inspector | Properties of whatever is selected |
-| Status bar | Counts, diagram size, scale, zoom, and transient messages |
+| Status bar | Saved / unsaved state, counts, diagram size, scale and zoom. Messages appear as a toast: green for success, red for problems |
+
+## Guided tour
+
+**Help → Guided tour (demo)** (also **Take the tour** in the top bar, the link on
+the empty canvas, and the button in the Help dialog) starts an animated,
+step-by-step walkthrough. It dims the screen, lights up one part at a time,
+points at it with an arrow, and plays a short demonstration with a pretend
+pointer: placing a symbol, typing in a shape, connecting two shapes, copying
+the LaTeX, and so on. Pretend shapes are drawn over the canvas only; your
+diagram is never changed.
+
+Move with **Next** / **Back** or the `←` `→` keys; leave with **Exit tour**, the
+× button, or `Esc`. First-time visitors are offered the tour once.
+
+## Colour coding
+
+- **Indigo** — the active tool or option, and main actions.
+- **Green** — safe and successful actions: Save, Copy LaTeX, Insert chart, success messages, "All changes saved".
+- **Red** — actions that remove things: Delete, Clear canvas; and error messages.
+- **Amber** — "Unsaved changes" and search matches.
 
 Drag the divider between the code and the editor to rebalance them; the split is
 remembered between sessions.
 
 ## Creating shapes
 
-1. Click a symbol in the palette — it stays armed and highlighted — or press
-   its letter, shown in the corner of every palette button.
+1. Click a symbol in the palette; it stays armed and highlighted.
 2. Click the canvas. The shape lands centred on the click, snapped to the grid.
 3. Double-clicking a palette symbol drops it in the middle of the view instead.
 
@@ -27,35 +47,25 @@ the fastest way to build a chain of steps.
 
 `Esc` disarms the palette and returns to the select tool.
 
-### Symbol shortcuts
+### Keyboard and shapes
 
-Every symbol has a letter. Pressing it arms that symbol exactly as clicking the
-palette button would, and pressing it again disarms it. `⇧` means hold Shift;
-the Shift tier is always the rarer half of a related pair, so `M` is manual
-input and `⇧M` is manual operation.
-
-| Category | Keys |
-| --- | --- |
-| Flow | `S` Start / End · `P` Process · `D` Decision · `I` Input / Output · `F` Predefined process · `X` Preparation · `M` Manual input · `⇧M` Manual operation · `Y` Delay · `L` Display · `O` Connector · `⇧O` Off-page connector · `U` Merge · `⇧U` Extract · `Q` Or · `⇧Q` Summing junction |
-| Documents | `W` Document · `⇧W` Multiple documents |
-| Data | `B` Database · `A` Stored data · `Z` Internal storage · `⇧Z` Direct access storage · `K` Card |
-| Extended | `J` Loop limit |
-| Basic | `R` Rectangle · `E` Ellipse |
-| Annotation | `T` Text label · `N` Note · `G` Annotation bracket |
-
-`V`, `H` and `C` stay with the tools (select, pan, connect), so no symbol
-claims them.
-
-### Which keystrokes the drawing board owns
-
-Letter shortcuts act on the drawing board, so the board has to have focus.
-Click anywhere on the canvas — a shape or bare paper — and it takes a teal
-ring; `Tab` reaches it too. While you are typing into a shape, the inspector,
-the palette filter or the code panel's search box, letters are just letters.
+Shapes have no letter keys: they are placed from the palette only, so typing
+while the board has focus never arms a shape. The tool letters `V`, `H` and
+`C` (select, pan, connect) still work while the drawing board has focus.
 
 Everything with a modifier (`Ctrl/Cmd + Z`, `Ctrl/Cmd + S`, …) and the editing
 keys (`Delete`, `Enter`, `F2`, the arrows, `Esc`, `?`) work from anywhere in
 the application, as they always have.
+
+## Charts from data
+
+Press **Chart from data** in the toolbar (or on the empty canvas). Load an
+Excel `.xlsx`, a `.csv`/`.tsv` file, paste cells copied from a spreadsheet, or
+use the sample sales data; check each column's type; then choose a chart type
+and drag fields into **Axis**, **Values**, **Legend** and **Filters** while the
+preview updates. **Insert chart** places it on the canvas. Select a chart to
+edit everything in the panel on the right; double-click it (or press `Enter`)
+to jump to its settings. The full guide is [`CHARTS.md`](CHARTS.md).
 
 ## Text
 
@@ -137,10 +147,12 @@ system's colour picker. Every distinct colour becomes exactly one
 
 - **Snapping** — shapes snap to the grid and to other shapes' edges and centres.
   Amber guides show what you snapped to. Hold `Alt` while dragging to disable.
-- **Align** — six buttons: left, horizontal centres, right, top, vertical
-  centres, bottom. Needs two or more shapes.
-- **Distribute** — even horizontal or vertical spacing. Needs three or more.
-- **Order** — Front, Fwd, Back, Bottom.
+- **Align** (selection bar) — left edges, centres, right edges, top edges,
+  middles, bottom edges. Needs two or more shapes.
+- **Distribute** (in the Align menu) — even spacing left to right or top to
+  bottom. Needs three or more.
+- **Arrange** (selection bar) — Bring to front, Bring forward, Send backward,
+  Send to back.
 - **Group** — `Ctrl/Cmd + G`. Selecting one member selects the group.
 - **Lock** — locked shapes ignore moves, resizes and alignment.
 
@@ -153,11 +165,19 @@ Multi-selections resize and rotate as a block.
 | Action | How |
 | --- | --- |
 | Pan | Middle-drag, hold `Alt` and drag, the **Pan** tool, or two-finger scroll |
-| Zoom | `Ctrl/Cmd` + scroll wheel, or the toolbar buttons |
-| Reset zoom | `Ctrl/Cmd + 0` |
-| Fit diagram | `Ctrl/Cmd + 1` |
+| Zoom in | `Ctrl/Cmd` + `+` (also `Ctrl` + `=` and numpad `+`), or the toolbar **+** |
+| Zoom out | `Ctrl/Cmd` + `-` (also numpad `-`), or the toolbar **−** |
+| Zoom at the pointer | `Ctrl/Cmd` + scroll wheel |
+| Reset zoom | `Ctrl/Cmd + 0`, or click the zoom percentage in the toolbar |
+| Fit diagram | `Ctrl/Cmd + 1`, or **Fit** |
 
-Zooming with the wheel keeps the point under the cursor fixed.
+Zooming with the wheel keeps the point under the cursor fixed; the keyboard and
+toolbar keep the middle of the board fixed. The zoom chords are taken by the
+app even while a text field has focus, so the browser never zooms the whole
+interface by mistake.
+
+The **Symbols** palette can be folded away with **«** (and back with **»**) to
+give the canvas more room, which helps when working on charts.
 
 ## Using the generated code
 
@@ -276,7 +296,6 @@ Press `?` for the in-app list. The essentials:
 | Keys | Action |
 | --- | --- |
 | `V` `H` `C` | Select, Pan, Connect |
-| Letters | Arm a symbol — see the table under *Creating shapes* |
 | `Ctrl/Cmd + Z` / `+ Y` | Undo / redo |
 | `Ctrl/Cmd + C` `X` `V` `D` | Copy, cut, paste, duplicate |
 | `Ctrl/Cmd + A` | Select all |
@@ -284,6 +303,7 @@ Press `?` for the in-app list. The essentials:
 | `Ctrl/Cmd + G` / `+ Shift + G` | Group / ungroup |
 | `Delete` | Delete selection |
 | Arrows / `Shift` + arrows | Nudge one grid step / ten units |
-| `Enter` or `F2` | Edit text |
+| `Enter` or `F2` | Edit text (on a chart: open its settings) |
+| `Ctrl/Cmd + +` / `-` | Zoom in / out |
 | `Ctrl/Cmd + 0` / `+ 1` | Reset zoom / fit |
 | `Esc` | Cancel |

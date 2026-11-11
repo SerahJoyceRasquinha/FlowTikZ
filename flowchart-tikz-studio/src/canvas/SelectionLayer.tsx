@@ -228,9 +228,9 @@ export const SelectionLayer = memo(function SelectionLayer({
           y={marquee.y}
           width={marquee.w}
           height={marquee.h}
-          fill="var(--accent)"
+          fill="var(--select)"
           fillOpacity={0.08}
-          stroke="var(--accent)"
+          stroke="var(--select)"
           strokeWidth={s}
           strokeDasharray={`${4 * s} ${3 * s}`}
         />
@@ -243,7 +243,7 @@ export const SelectionLayer = memo(function SelectionLayer({
           width={bounds.w}
           height={bounds.h}
           fill="none"
-          stroke="var(--accent)"
+          stroke="var(--select)"
           strokeWidth={1.2 * s}
         />
       )}
@@ -261,7 +261,7 @@ export const SelectionLayer = memo(function SelectionLayer({
                 width={handleSize}
                 height={handleSize}
                 fill="var(--paper)"
-                stroke="var(--accent)"
+                stroke="var(--select)"
                 strokeWidth={1.2 * s}
                 pointerEvents="all"
                 style={{ cursor: CURSORS[h] }}
@@ -275,7 +275,7 @@ export const SelectionLayer = memo(function SelectionLayer({
                 y1={bounds.y}
                 x2={bounds.x + bounds.w / 2}
                 y2={bounds.y - ROTATE_OFFSET * s}
-                stroke="var(--accent)"
+                stroke="var(--select)"
                 strokeWidth={1.2 * s}
                 strokeOpacity={0.55}
               />
@@ -285,7 +285,7 @@ export const SelectionLayer = memo(function SelectionLayer({
                 cy={bounds.y - ROTATE_OFFSET * s}
                 r={5 * s}
                 fill="var(--paper)"
-                stroke="var(--accent)"
+                stroke="var(--select)"
                 strokeWidth={1.2 * s}
                 pointerEvents="all"
                 style={{ cursor: 'grab' }}

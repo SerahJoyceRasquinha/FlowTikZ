@@ -27,6 +27,15 @@ import {
 } from '../model/diagram';
 import type { OutputMode } from '../latex/generator';
 import { remapDiagramIds } from '../import/conversion/ids';
+import type { ChartSpec } from '../charts/types';
+import { DEFAULT_CHART_SIZE } from '../charts/defaults';
+import type { ScienceSpec } from '../science/types';
+import { emptyCircuitSpec } from '../science/types';
+import { isCircuitKind, CIRCUIT_BY_ID } from '../science/physics/circuits';
+import { mirrorMolecule } from '../science/chem/molecule';
+import { getShapeDef } from '../model/shapes';
+import { distanceToSegment } from '../model/geometry';
+import { routeEdge } from '../model/routing';
 
 export type Tool = 'select' | 'pan' | 'connect' | 'text' | 'shape';
 
@@ -48,6 +57,15 @@ interface Clipboard {
   nodes: Node[];
   edges: Edge[];
 }
+
+/** Which scientific editor is open, and on what. */
+export type ScienceDialog =
+  | { kind: 'math'; nodeId?: string; library?: 'math' | 'physics' }
+  | { kind: 'chem'; nodeId?: string; tab?: 'formula' | 'reaction' }
+  | { kind: 'molecule'; nodeId?: string };
+
+/** Which set of symbols the left palette is showing. */
+export type PaletteDomain = 'flow' | 'circuit' | 'physics';
 
 export interface EditorState {
   doc: Diagram;
@@ -151,18 +169,108 @@ export interface EditorState {
 
   /* -------- draft connection -------- */
   setDraft: (d: DraftConnection | null) => void;
+
+  /* -------- charts -------- */
+  /** The chart builder dialog: creating a new chart, or editing one's data and fields. */
+  chartBuilder: { mode: 'new' } | { mode: 'edit'; nodeId: string } | null;
+  openChartBuilder: (b: EditorState['chartBuilder']) => void;
+  /** Ask the inspector to bring a chart's settings into view (Enter / double-click). */
+  chartFocus: { id: string; nonce: number } | null;
+  requestChartFocus: (id: string) => void;
+  /** Insert a chart centred on `at` (diagram units). One undo step. */
+  insertChart: (
+    spec: ChartSpec,
+    at: Point,
+    size?: { w: number; h: number },
+    viewport?: { width: number; height: number },
+  ) => string;
+  /** Zoom out and pan, if needed, so an object is fully visible. View only. */
+  revealNode: (id: string, viewport: { width: number; height: number }) => void;
+  /** Change a chart's spec. One undo step per call. */
+  updateChart: (id: string, fn: (spec: ChartSpec) => void) => void;
+
+  /* ------------------------------------------------------------- science */
+  scienceDialog: ScienceDialog | null;
+  openScienceDialog: (d: ScienceDialog | null) => void;
+  paletteDomain: PaletteDomain;
+  setPaletteDomain: (d: PaletteDomain) => void;
+  /** Insert a typeset or drawn object centred in the view. One undo step. */
+  insertScience: (
+    kind: 'math' | 'chem' | 'molecule',
+    spec: ScienceSpec,
+    size: { w: number; h: number },
+    at: Point,
+  ) => string;
+  /** Replace an object's payload and (keeping its centre) its size. */
+  updateScience: (id: string, spec: ScienceSpec, size?: { w: number; h: number }) => void;
+  /** Mirror the selected flippable objects. One undo step. */
+  flipSelection: (axis: 'h' | 'v') => void;
+  /** Turn the selection by a fixed angle, each about its own centre. */
+  rotateSelectionBy: (deg: number) => void;
+  /**
+   * Tie a wire into another wire: a junction dot at the nearest point of `edgeId`
+   * and the wire split around it. Returns the junction's id.
+   */
+  addJunctionOnWire: (edgeId: string, at: Point) => string | null;
 }
 
 const HISTORY_LIMIT = 100;
 
-function clone<T>(v: T): T {
+function deepClone<T>(v: T): T {
   return typeof structuredClone === 'function'
     ? structuredClone(v)
     : (JSON.parse(JSON.stringify(v)) as T);
 }
 
+/*
+ * Chart data tables can hold tens of thousands of rows. They are treated as
+ * immutable - every edit replaces a table, nothing writes into one - so the
+ * copies made for undo history share them instead of duplicating them. That
+ * keeps a long history of edits to a big chart cheap in time and memory.
+ */
+function clone<T>(v: T): T {
+  const d = v as unknown as Diagram;
+  // Only whole documents (nodes keyed by id); anything else is copied deeply.
+  if (!d || typeof d !== 'object' || !d.nodes || typeof d.nodes !== 'object' || Array.isArray(d.nodes)) {
+    return deepClone(v);
+  }
+  const detached: [Node, ChartSpec['data']][] = [];
+  for (const n of Object.values(d.nodes)) {
+    if (n?.chart?.data) {
+      detached.push([n, n.chart.data]);
+      n.chart.data = null as unknown as ChartSpec['data'];
+    }
+  }
+  try {
+    const copy = deepClone(v) as unknown as Diagram;
+    for (const [n, data] of detached) {
+      const twin = copy.nodes[n.id];
+      if (twin?.chart) twin.chart.data = data;
+    }
+    return copy as unknown as T;
+  } finally {
+    for (const [n, data] of detached) n.chart!.data = data;
+  }
+}
+
+const tableIds = new WeakMap<object, number>();
+let nextTableId = 1;
+function tableId(t: object): number {
+  let id = tableIds.get(t);
+  if (!id) {
+    id = nextTableId++;
+    tableIds.set(t, id);
+  }
+  return id;
+}
+
 function sameDoc(a: Diagram, b: Diagram): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  // Tables compare by identity (they are never edited in place).
+  const replacer = (key: string, value: unknown) =>
+    key === 'data' && value && typeof value === 'object' && Array.isArray((value as { rows?: unknown }).rows)
+      ? `table#${tableId(value as object)}`
+      : value;
+  return JSON.stringify(a, replacer) === JSON.stringify(b, replacer);
 }
 
 export const useEditor = create<EditorState>((set, get) => ({
@@ -185,6 +293,10 @@ export const useEditor = create<EditorState>((set, get) => ({
   lastSavedAt: null,
   statusMessage: null,
   snapshot: null,
+  chartBuilder: null,
+  chartFocus: null,
+  scienceDialog: null,
+  paletteDomain: 'flow',
 
   /* ------------------------------------------------------------- history */
   beginInteraction: () => {
@@ -431,6 +543,12 @@ export const useEditor = create<EditorState>((set, get) => ({
     const id = nextId('n');
     get().commit((d) => {
       const node = makeNode(kind, at.x, at.y, { id });
+      if (isCircuitKind(kind)) {
+        node.science = emptyCircuitSpec(nextDesignator(d, kind));
+        node.style.strokeWidth = 1.2;
+      } else if (kind.startsWith('physics.') && getShapeDef(kind).noOutline) {
+        node.style.fillOpacity = 0;
+      }
       node.x = Math.round(at.x - node.w / 2);
       node.y = Math.round(at.y - node.h / 2);
       if (d.settings.snapToGrid) {
@@ -506,7 +624,18 @@ export const useEditor = create<EditorState>((set, get) => ({
   addEdge: (edge) => {
     const id = nextId('e');
     get().commit((d) => {
-      d.edges[id] = makeEdge({ ...edge, id });
+      const made = makeEdge({ ...edge, id });
+      const touchesCircuit = [made.source.nodeId, made.target.nodeId].some(
+        (nid) => nid && isCircuitKind(d.nodes[nid]?.kind ?? ''),
+      );
+      // Anything wired to a component is a wire unless the caller said otherwise.
+      if (touchesCircuit && edge.arrowEnd === undefined) {
+        made.wire = true;
+        made.arrowEnd = 'none';
+        made.strokeWidth = 1.2;
+        made.routing = 'orthogonal';
+      }
+      d.edges[id] = made;
       d.order.push(id);
     });
     set({ selection: [id] });
@@ -682,7 +811,177 @@ export const useEditor = create<EditorState>((set, get) => ({
   setShowComments: (v) => set({ showComments: v }),
 
   setDraft: (d) => set({ draft: d }),
+
+  /* -------------------------------------------------------------- charts */
+  openChartBuilder: (b) => set({ chartBuilder: b }),
+
+  requestChartFocus: (id) =>
+    set({ chartFocus: { id, nonce: (get().chartFocus?.nonce ?? 0) + 1 }, selection: [id] }),
+
+  insertChart: (spec, at, size = DEFAULT_CHART_SIZE, viewport) => {
+    const id = nextId('n');
+    get().commit((d) => {
+      const node = makeNode('chart', 0, 0, { id, w: size.w, h: size.h });
+      node.x = Math.round(at.x - size.w / 2);
+      node.y = Math.round(at.y - size.h / 2);
+      if (d.settings.snapToGrid) {
+        const g = d.settings.gridSize;
+        node.x = Math.round(node.x / g) * g;
+        node.y = Math.round(node.y / g) * g;
+      }
+      node.style = { ...node.style, strokeStyle: 'none', fill: '#ffffff', fillOpacity: 0 };
+      node.chart = clone(spec);
+      d.nodes[id] = node;
+      d.order.push(id);
+    });
+    set({ selection: [id], tool: 'select', pendingShape: null });
+    if (viewport) get().revealNode(id, viewport);
+    return id;
+  },
+
+  revealNode: (id, viewport) => {
+    const n = get().doc.nodes[id];
+    if (!n || viewport.width <= 0 || viewport.height <= 0) return;
+    const { view } = get();
+    const pad = 40;
+    const fit = Math.min((viewport.width - pad * 2) / n.w, (viewport.height - pad * 2) / n.h);
+    const zoom = Math.max(0.1, Math.min(view.zoom, fit));
+    const left = n.x * zoom + view.panX;
+    const top = n.y * zoom + view.panY;
+    const inside =
+      zoom === view.zoom &&
+      left >= 0 &&
+      top >= 0 &&
+      left + n.w * zoom <= viewport.width &&
+      top + n.h * zoom <= viewport.height;
+    if (inside) return;
+    set({
+      view: {
+        zoom,
+        panX: viewport.width / 2 - (n.x + n.w / 2) * zoom,
+        panY: viewport.height / 2 - (n.y + n.h / 2) * zoom,
+      },
+    });
+  },
+
+  updateChart: (id, fn) =>
+    get().commit((d) => {
+      const n = d.nodes[id];
+      if (n?.chart) fn(n.chart);
+    }),
+
+  /* ------------------------------------------------------------- science */
+  openScienceDialog: (dialog) => set({ scienceDialog: dialog }),
+
+  setPaletteDomain: (domain) => set({ paletteDomain: domain }),
+
+  insertScience: (kind, spec, size, at) => {
+    const id = nextId('n');
+    get().commit((d) => {
+      const node = makeNode(kind, 0, 0, { id, w: size.w, h: size.h });
+      node.x = Math.round(at.x - size.w / 2);
+      node.y = Math.round(at.y - size.h / 2);
+      node.style = { ...node.style, strokeStyle: spec.type === 'molecule' ? 'solid' : 'none', fillOpacity: 0, strokeWidth: 1.2 };
+      node.science = clone(spec);
+      d.nodes[id] = node;
+      d.order.push(id);
+    });
+    set({ selection: [id], tool: 'select', pendingShape: null });
+    return id;
+  },
+
+  updateScience: (id, spec, size) =>
+    get().commit((d) => {
+      const n = d.nodes[id];
+      if (!n) return;
+      n.science = clone(spec);
+      if (size) {
+        n.x += (n.w - size.w) / 2;
+        n.y += (n.h - size.h) / 2;
+        n.w = size.w;
+        n.h = size.h;
+      }
+    }),
+
+  flipSelection: (axis) => {
+    const { selection } = get();
+    get().commit((d) => {
+      for (const id of selection) {
+        const n = d.nodes[id];
+        if (!n || n.locked) continue;
+        if (n.science?.type === 'molecule') n.science = mirrorMolecule(n.science, axis);
+        else if (getShapeDef(n.kind).flippable) {
+          if (axis === 'h') n.flipH = !n.flipH || undefined;
+          else n.flipV = !n.flipV || undefined;
+        }
+      }
+    });
+  },
+
+  rotateSelectionBy: (deg) => {
+    const { selection } = get();
+    get().commit((d) => {
+      for (const id of selection) {
+        const n = d.nodes[id];
+        if (n && !n.locked && n.kind !== 'chart') n.rotation = ((n.rotation + deg) % 360 + 360) % 360;
+      }
+    });
+  },
+
+  addJunctionOnWire: (edgeId, at) => {
+    const { doc } = get();
+    const edge = doc.edges[edgeId];
+    if (!edge) return null;
+    const route = routeEdge(doc, edge);
+    if (!route) return null;
+    // Project onto the nearest straight run, so the dot sits on the wire.
+    let best = { p: route.samples[0], d: Infinity };
+    for (let i = 1; i < route.samples.length; i++) {
+      const a = route.samples[i - 1];
+      const b = route.samples[i];
+      const l2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+      const t = l2 > 0 ? Math.max(0, Math.min(1, ((at.x - a.x) * (b.x - a.x) + (at.y - a.y) * (b.y - a.y)) / l2)) : 0;
+      const p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      const dist = distanceToSegment(at, a, b);
+      if (dist < best.d) best = { p, d: dist };
+    }
+    const jid = nextId('n');
+    const secondId = nextId('e');
+    const size = CIRCUIT_BY_ID['circuit.junction'].size;
+    get().commit((d) => {
+      const dot = makeNode('circuit.junction', 0, 0, { id: jid });
+      dot.x = best.p.x - size.w / 2;
+      dot.y = best.p.y - size.h / 2;
+      dot.science = emptyCircuitSpec();
+      dot.style.strokeWidth = edge.strokeWidth;
+      dot.style.stroke = edge.stroke;
+      d.nodes[jid] = dot;
+      d.order.push(jid);
+      const first = d.edges[edgeId];
+      const second: Edge = { ...clone(first), id: secondId, source: { nodeId: jid, port: 'auto' }, waypoints: [] };
+      first.target = { nodeId: jid, port: 'auto' };
+      first.waypoints = [];
+      d.edges[secondId] = second;
+      d.order.push(secondId);
+    });
+    return jid;
+  },
 }));
+
+/** First free designator for a component: R1, R2, ... */
+function nextDesignator(d: Diagram, kind: string): string {
+  const prefix = CIRCUIT_BY_ID[kind]?.designator;
+  if (!prefix) return '';
+  const used = new Set(
+    Object.values(d.nodes)
+      .map((n) => (n.science?.type === 'circuit' ? n.science.label : ''))
+      .filter(Boolean),
+  );
+  for (let i = 1; ; i++) {
+    const label = `${prefix}_{${i}}`;
+    if (!used.has(label)) return label;
+  }
+}
 
 /** Bounds helper used by several components. */
 export function useSelectionBounds(): Rect | null {

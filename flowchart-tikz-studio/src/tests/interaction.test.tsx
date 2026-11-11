@@ -6,7 +6,6 @@ import App from '../App';
 import { useEditor } from '../state/store';
 import { emptyDiagram } from '../model/defaults';
 import { resetIdCounters } from '../model/ids';
-import { SHAPE_SHORTCUTS, shortcutLabel, shortcutForShape } from '../model/shortcuts';
 import { SHAPE_LIST } from '../model/shapes';
 import { generateLatex } from '../latex/generator';
 import { lintLatex } from './latexLint';
@@ -150,85 +149,34 @@ function addShape(kind: string, at: { x: number; y: number }) {
   return id;
 }
 
-/* ------------------------------------------------- keyboard shape shortcuts */
+/* ------------------------------------------- shapes have no letter keys */
 
-describe('keyboard shape shortcuts', () => {
-  it('arms a shape from its letter when the board has focus', () => {
+describe('shape placement is palette-only', () => {
+  it('does not arm any shape from a letter key', () => {
     render();
-    expect(useEditor.getState().pendingShape).toBeNull();
-    key('r');
-    expect(useEditor.getState().pendingShape).toBe('rectangle');
-    expect(useEditor.getState().tool).toBe('shape');
-  });
-
-  it('treats the letter as a toggle, exactly like clicking the palette', () => {
-    render();
-    key('r');
-    expect(useEditor.getState().pendingShape).toBe('rectangle');
-    key('r');
-    expect(useEditor.getState().pendingShape).toBeNull();
-    expect(useEditor.getState().tool).toBe('select');
-  });
-
-  it('accepts upper case as the same shortcut', () => {
-    render();
-    key('D');
-    expect(useEditor.getState().pendingShape).toBe('decision');
-  });
-
-  it('separates the shift tier from the plain tier', () => {
-    render();
-    key('m');
-    expect(useEditor.getState().pendingShape).toBe('manual-input');
-    key('M', { shiftKey: true });
-    expect(useEditor.getState().pendingShape).toBe('manual-operation');
-  });
-
-  it('resolves every binding in the table to its own shape', () => {
-    render();
-    for (const s of SHAPE_SHORTCUTS) {
-      act(() => useEditor.getState().armShape(null));
-      key(s.letter, { shiftKey: s.shift });
-      expect(
-        useEditor.getState().pendingShape,
-        `${s.letter}${s.shift ? ' (shift)' : ''} should arm ${s.kind}`,
-      ).toBe(s.kind);
+    for (const k of 'abdefgijklmnopqrstuwxyz'.split('')) {
+      key(k);
+      key(k.toUpperCase(), { shiftKey: true });
+      expect(useEditor.getState().pendingShape, `letter ${k}`).toBeNull();
+      expect(useEditor.getState().tool).not.toBe('shape');
     }
+    expect(Object.keys(useEditor.getState().doc.nodes)).toHaveLength(0);
   });
 
-  it('places the armed shape where the canvas is clicked, once', () => {
+  it('places a shape after clicking it in the palette, once', () => {
     render();
-    key('r');
+    const btn = container.querySelector('.shape-btn[aria-label="Rectangle"]') as HTMLButtonElement;
+    act(() => btn.click());
+    expect(useEditor.getState().pendingShape).toBe('rectangle');
     down({ x: 300, y: 200 });
     up({ x: 300, y: 200 });
-    const d = useEditor.getState().doc;
-    const nodes = Object.values(d.nodes);
+    const nodes = Object.values(useEditor.getState().doc.nodes);
     expect(nodes).toHaveLength(1);
     expect(nodes[0].kind).toBe('rectangle');
-    // One press, one shape - a held key cannot rain shapes onto the canvas.
     expect(useEditor.getState().tool).toBe('select');
   });
 
-  it('ignores the auto-repeat of a held key', () => {
-    render();
-    key('r');
-    expect(useEditor.getState().pendingShape).toBe('rectangle');
-    key('r', { repeat: true });
-    // A repeat must not toggle it back off.
-    expect(useEditor.getState().pendingShape).toBe('rectangle');
-  });
-
-  it('leaves browser and system chords alone', () => {
-    render();
-    key('r', { ctrlKey: true }); // reload
-    expect(useEditor.getState().pendingShape).toBeNull();
-    key('r', { metaKey: true });
-    expect(useEditor.getState().pendingShape).toBeNull();
-    key('r', { altKey: true });
-    expect(useEditor.getState().pendingShape).toBeNull();
-  });
-
-  it('keeps the tool letters working and unclaimed by any shape', () => {
+  it('keeps the tool letters working', () => {
     render();
     key('h');
     expect(useEditor.getState().tool).toBe('pan');
@@ -237,6 +185,101 @@ describe('keyboard shape shortcuts', () => {
     key('v');
     expect(useEditor.getState().tool).toBe('select');
     expect(useEditor.getState().pendingShape).toBeNull();
+  });
+
+  it('leaves browser and system chords alone', () => {
+    render();
+    key('h', { ctrlKey: true });
+    key('h', { altKey: true });
+    expect(useEditor.getState().tool).toBe('select');
+  });
+});
+
+/* ------------------------------------------------------------- zoom keys */
+
+describe('zoom shortcuts', () => {
+  const zoom = () => useEditor.getState().view.zoom;
+
+  it('zooms in with Ctrl + "=", Ctrl + "+" (shifted) and the numpad', () => {
+    render();
+    key('=', { ctrlKey: true, code: 'Equal' } as KeyboardEventInit);
+    expect(zoom()).toBeCloseTo(1.2);
+    key('+', { ctrlKey: true, shiftKey: true, code: 'Equal' } as KeyboardEventInit);
+    expect(zoom()).toBeCloseTo(1.44);
+    key('+', { ctrlKey: true, code: 'NumpadAdd' } as KeyboardEventInit);
+    expect(zoom()).toBeCloseTo(1.728);
+  });
+
+  it('zooms out with Ctrl + "-", Ctrl + "_" and the numpad, and resets with Ctrl + 0', () => {
+    render();
+    key('-', { ctrlKey: true, code: 'Minus' } as KeyboardEventInit);
+    expect(zoom()).toBeCloseTo(1 / 1.2);
+    key('_', { ctrlKey: true, shiftKey: true, code: 'Minus' } as KeyboardEventInit);
+    key('-', { ctrlKey: true, code: 'NumpadSubtract' } as KeyboardEventInit);
+    expect(zoom()).toBeCloseTo(1 / 1.728);
+    key('0', { ctrlKey: true, code: 'Digit0' } as KeyboardEventInit);
+    expect(zoom()).toBeCloseTo(1);
+  });
+
+  it('works by key code alone, for layouts where "+" is not on the "=" key', () => {
+    render();
+    key('Unidentified', { ctrlKey: true, code: 'Equal' } as KeyboardEventInit);
+    expect(zoom()).toBeCloseTo(1.2);
+  });
+
+  it('works with Cmd on a Mac', () => {
+    render();
+    key('=', { metaKey: true, code: 'Equal' } as KeyboardEventInit);
+    expect(zoom()).toBeCloseTo(1.2);
+  });
+
+  it('still zooms the drawing while a text field has focus, instead of the browser page', () => {
+    render();
+    const input = container.querySelector('.palette-head input') as HTMLInputElement;
+    input.focus();
+    let prevented = false;
+    act(() => {
+      const ev = new KeyboardEvent('keydown', { key: '=', code: 'Equal', ctrlKey: true, bubbles: true, cancelable: true });
+      input.dispatchEvent(ev);
+      prevented = ev.defaultPrevented;
+    });
+    expect(prevented).toBe(true);
+    expect(zoom()).toBeCloseTo(1.2);
+  });
+
+  it('is not swallowed by a panel that stops key propagation', () => {
+    render();
+    const id = addShape('process', { x: 200, y: 200 });
+    act(() => useEditor.getState().setSelection([id]));
+    const textarea = container.querySelector('.inspector textarea') as HTMLTextAreaElement;
+    expect(textarea).toBeTruthy();
+    textarea.focus();
+    act(() => {
+      textarea.dispatchEvent(new KeyboardEvent('keydown', { key: '-', code: 'Minus', ctrlKey: true, bubbles: true, cancelable: true }));
+    });
+    expect(zoom()).toBeCloseTo(1 / 1.2);
+  });
+
+  it('keeps the middle of the board still while zooming', () => {
+    render();
+    useEditor.setState({ view: { zoom: 1, panX: 0, panY: 0 } });
+    // jsdom has no layout; give the board a size the way a browser would.
+    const board = shell();
+    vi.spyOn(board, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 900, bottom: 640, width: 900, height: 640, toJSON: () => ({}) } as DOMRect);
+    key('=', { ctrlKey: true, code: 'Equal' } as KeyboardEventInit);
+    const v = useEditor.getState().view;
+    const cx = (450 - v.panX) / v.zoom;
+    const cy = (320 - v.panY) / v.zoom;
+    expect(cx).toBeCloseTo(450, 0);
+    expect(cy).toBeCloseTo(320, 0);
+  });
+
+  it('zooms from the toolbar buttons and shows the current level', () => {
+    render();
+    const zoomIn = container.querySelector('[aria-label="Zoom in"]') as HTMLButtonElement;
+    act(() => zoomIn.click());
+    expect(zoom()).toBeCloseTo(1.2);
+    expect(container.querySelector('.zoom-readout')?.textContent).toBe('120%');
   });
 });
 
@@ -249,8 +292,8 @@ describe('shortcut focus restrictions', () => {
       '.palette-head input',
     ) as HTMLInputElement;
     input.focus();
-    key('r');
-    expect(useEditor.getState().pendingShape).toBeNull();
+    key('h');
+    expect(useEditor.getState().tool).toBe('select');
   });
 
   it('does nothing while the shape text overlay is open', () => {
@@ -260,8 +303,8 @@ describe('shortcut focus restrictions', () => {
     const ta = container.querySelector('textarea.text-overlay') as HTMLTextAreaElement;
     expect(ta).toBeTruthy();
     ta.focus();
-    key('r');
-    expect(useEditor.getState().pendingShape).toBeNull();
+    key('h');
+    expect(useEditor.getState().tool).toBe('select');
   });
 
   it('does nothing while the code panel search box has focus', () => {
@@ -272,27 +315,27 @@ describe('shortcut focus restrictions', () => {
     act(() => searchBtn.click());
     const input = container.querySelector('.search-row input') as HTMLInputElement;
     input.focus();
-    key('r');
-    expect(useEditor.getState().pendingShape).toBeNull();
+    key('h');
+    expect(useEditor.getState().tool).toBe('select');
   });
 
   it('does nothing while another control, such as a toolbar button, has focus', () => {
     render();
     const btn = container.querySelector('.toolbar .btn') as HTMLButtonElement;
     btn.focus();
-    key('r');
-    expect(useEditor.getState().pendingShape).toBeNull();
+    key('h');
+    expect(useEditor.getState().tool).toBe('select');
   });
 
   it('works again once the board takes focus back', () => {
     render();
     const btn = container.querySelector('.toolbar .btn') as HTMLButtonElement;
     btn.focus();
-    key('r');
-    expect(useEditor.getState().pendingShape).toBeNull();
+    key('h');
+    expect(useEditor.getState().tool).toBe('select');
     act(() => shell().focus());
-    key('r');
-    expect(useEditor.getState().pendingShape).toBe('rectangle');
+    key('h');
+    expect(useEditor.getState().tool).toBe('pan');
   });
 
   it('still runs the editing shortcuts that were never board-scoped', () => {
@@ -454,23 +497,15 @@ describe('drawing board focus state', () => {
 /* ------------------------------------------------------------ shape palette */
 
 describe('shape palette', () => {
-  it('shows a shortcut badge on every shape, matching the shared table', () => {
+  it('lists every shape, without keyboard badges', () => {
     render();
     const buttons = [...container.querySelectorAll('.shape-btn')];
     expect(buttons.length).toBe(SHAPE_LIST.length);
     for (const def of SHAPE_LIST) {
-      const btn = buttons.find((b) =>
-        b.getAttribute('aria-label')?.startsWith(def.label),
-      ) as HTMLElement;
+      const btn = buttons.find((b) => b.getAttribute('aria-label') === def.label) as HTMLElement;
       expect(btn, `no palette button for ${def.id}`).toBeTruthy();
-      const badge = btn.querySelector('.shape-key');
-      const sc = shortcutForShape(def.id)!;
-      expect(badge?.textContent, `badge for ${def.id}`).toBe(shortcutLabel(sc));
-      // The same binding, spelled for assistive technology.
-      expect(btn.getAttribute('aria-keyshortcuts')).toBe(
-        sc.shift ? `Shift+${sc.letter}` : sc.letter,
-      );
-      expect(btn.getAttribute('aria-label')).toContain('press');
+      expect(btn.querySelector('.shape-key')).toBeNull();
+      expect(btn.hasAttribute('aria-keyshortcuts')).toBe(false);
     }
   });
 
@@ -482,7 +517,7 @@ describe('shape palette', () => {
     }
   });
 
-  it('marks the armed shape, whether armed by click or by key', () => {
+  it('marks the armed shape, and a second click disarms it', () => {
     render();
     const btn = [...container.querySelectorAll('.shape-btn')].find((b) =>
       b.getAttribute('aria-label')?.startsWith('Rectangle'),
@@ -492,10 +527,9 @@ describe('shape palette', () => {
     expect(useEditor.getState().pendingShape).toBe('rectangle');
     expect(btn.getAttribute('aria-pressed')).toBe('true');
     expect(btn.className).toContain('on');
-    // The keystroke drives the identical state, so the UI agrees either way.
     act(() => btn.click());
-    key('r');
-    expect(btn.getAttribute('aria-pressed')).toBe('true');
+    expect(useEditor.getState().pendingShape).toBeNull();
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
   });
 });
 
@@ -506,7 +540,7 @@ describe('hover detection', () => {
   const ringsOn = (id: string) => {
     const group = container.querySelector(`[data-object-id="${id}"]`)!;
     return [...group.querySelectorAll('path[data-ui]')].filter(
-      (p) => p.getAttribute('stroke') === 'var(--accent)',
+      (p) => p.getAttribute('stroke') === 'var(--select)',
     );
   };
 
@@ -1098,9 +1132,9 @@ describe('awkward moments do not throw', () => {
     const n = useEditor.getState().doc.nodes[id];
     down({ x: n.x + n.w / 2, y: n.y + n.h / 2 });
     await move({ x: n.x + n.w / 2 + 40, y: n.y + n.h / 2 });
-    // A letter shortcut arrives mid-gesture.
+    // A tool shortcut arrives mid-gesture.
     key('c');
-    key('r');
+    key('h');
     await move({ x: n.x + n.w / 2 + 80, y: n.y + n.h / 2 });
     expect(() => up({ x: n.x + n.w / 2 + 80, y: n.y + n.h / 2 })).not.toThrow();
     expect(consoleErrors).toEqual([]);
@@ -1143,7 +1177,7 @@ describe('awkward moments do not throw', () => {
         ...container
           .querySelector(`[data-object-id="${id}"]`)!
           .querySelectorAll('path[data-ui]'),
-      ].filter((p) => p.getAttribute('stroke') === 'var(--accent)').length;
+      ].filter((p) => p.getAttribute('stroke') === 'var(--select)').length;
 
     await move({ x: n.x + n.w / 2, y: n.y + n.h / 2 });
     expect(lit()).toBe(1);
@@ -1183,7 +1217,7 @@ describe('awkward moments do not throw', () => {
   it('accepts shortcuts pressed before anything has been drawn', () => {
     render();
     expect(() => {
-      key('r');
+      key('h');
       key('Delete');
       key('z', { ctrlKey: true });
       key('a', { ctrlKey: true });

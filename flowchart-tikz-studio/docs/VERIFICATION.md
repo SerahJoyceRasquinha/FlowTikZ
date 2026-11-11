@@ -27,7 +27,7 @@ npm run latex:fixtures        # writes latex-verify/*.tex
 bash scripts/verify-latex.sh  # compiles them, checks dimensions
 ```
 
-Requires a TeX distribution with `tikz`, `xcolor` and the `standalone` class —
+Requires a TeX distribution with `tikz`, `pgfplots` (1.18, for the chart fixtures), `xcolor` and the `standalone` class —
 on Debian/Ubuntu, `texlive-latex-base texlive-latex-extra texlive-pictures`.
 
 ## Latest result
@@ -41,6 +41,8 @@ PASS  05-empty              (1 page, 15.94x15.94 pt)
 PASS  06-scaled             (1 page, 97.102x115.38 pt)
 PASS  07-geometry-control   (1 page, 130.233x73.54 pt)
       geometry OK: expected 130.72x73.82 pt, got 130.233x73.54 pt
+PASS  08-all-charts         (1 page, 1191.98x1400.64 pt)
+PASS  09-chart-snippet-in-article  (1 page, 612x792 pt)
 
 All fixtures compiled.
 ```
@@ -56,6 +58,8 @@ All fixtures compiled.
 | 05-empty | An empty diagram must still compile |
 | 06-scaled | The example at 200 units/cm, exercising the conversion at an extreme |
 | 07-geometry-control | Dimensional accuracy |
+| 08-all-charts | All 8 chart types and their options (grouped, stacked, two value fields, horizontal, date grouping, dashed/dotted lines, every marker, stacked area, pie labels, donut with background, fixed bins), data with `& % # _ { }`, negative values, filters with top N, 24 rotated category labels, and a flowchart connected to a chart |
+| 09-chart-snippet-in-article | A chart in snippet mode pasted into a figure in an `article`, as a user would in Overleaf |
 
 ## Checked for
 
@@ -91,3 +95,24 @@ If no local TeX is available:
 Overleaf's default is pdfLaTeX, which is what the generated preamble targets. If
 your text warned about characters needing a Unicode engine, switch the project
 to XeLaTeX or LuaLaTeX in *Menu → Compiler*.
+
+
+## Canvas against PDF, for charts
+
+Charts were also checked by overlay: the chart's canvas SVG and the compiled
+PDF were rasterised at the same scale (2 px per diagram unit, 254 dpi) with the
+PDF's bounding box pinned to the chart box, and laid over each other in two
+colours. Plot frames, gridlines, bars, lines, markers, pie slices, legend boxes
+and swatches coincide exactly for every chart type; the only visible
+difference is glyph width, because the browser's sans-serif is wider than
+TeX's (see `LIMITATIONS.md`). Two PGFPlots defaults found this way are
+neutralised in the output: the automatic 6 pt title shift, and the extra
+tick-label offset that outward ticks add.
+
+## Scientific objects
+
+Fixtures 10 to 18 cover the maths gallery, every symbol button, every circuit
+component, wired circuits in all orientations, physics parts, chemistry, molecules,
+a mixed diagram and a snippet pasted into `article`. They need `circuitikz`,
+`mhchem`, `chemfig` (with `simplekv`), `amsmath` and `amssymb`.
+

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { CanvasStage } from './canvas/CanvasStage';
 import { CodePanel } from './components/CodePanel';
 import { PropertyInspector } from './components/PropertyInspector';
@@ -16,6 +16,16 @@ import { ImportDialog } from './components/ImportDialog';
 import { ImportProgress } from './components/ImportProgress';
 import { ImportReportDialog } from './components/ImportReportDialog';
 import { configureImport } from './import/controller';
+import { ChartBuilder } from './components/ChartBuilder';
+import { SelectionBar } from './components/SelectionBar';
+import { Tour } from './components/tour/Tour';
+import { TourPrompt } from './components/tour/TourPrompt';
+import { TooltipLayer } from './components/Tooltip';
+import { useTour } from './state/tourStore';
+import { Icon } from './components/Icon';
+
+/* Editors and their symbol tables load on first use, never with the canvas. */
+const ScienceDialogs = lazy(() => import('./components/science/ScienceDialogs'));
 
 export default function App() {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -26,6 +36,12 @@ export default function App() {
   const doc = useEditor((s) => s.doc);
   const dirty = useEditor((s) => s.dirty);
   const loadDocument = useEditor((s) => s.loadDocument);
+  const tourActive = useTour((t) => t.active);
+  const scienceOpen = useEditor((s) => s.scienceDialog !== null);
+  const [scienceMounted, setScienceMounted] = useState(false);
+  useEffect(() => {
+    if (scienceOpen) setScienceMounted(true);
+  }, [scienceOpen]);
 
   useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true), canvasSize });
 
@@ -69,8 +85,26 @@ export default function App() {
   useEffect(() => {
     measure();
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    // The board also changes size when the palette folds or the inspector widens.
+    const el = document.querySelector('.canvas-shell');
+    const ro = typeof ResizeObserver !== 'undefined' && el ? new ResizeObserver(() => measure()) : null;
+    if (ro && el) ro.observe(el);
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro?.disconnect();
+    };
   }, [measure]);
+
+  /** Fit a freshly loaded diagram to the board once it has been laid out. */
+  const fitSoon = useCallback(() => {
+    const run = () => {
+      const el = document.querySelector('.canvas-shell');
+      const r = el?.getBoundingClientRect();
+      if (r && r.width > 0) useEditor.getState().fitToView({ width: r.width, height: r.height });
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(run));
+    else run();
+  }, []);
 
   const onSvgReady = useCallback((el: SVGSVGElement | null) => {
     svgRef.current = el;
@@ -82,10 +116,25 @@ export default function App() {
    * otherwise the dialog's Close button would keep focus and swallow them.
    */
   useEffect(() => {
-    if (helpOpen) return;
+    if (helpOpen || tourActive || scienceOpen) return;
     const board = document.querySelector('.canvas-shell') as HTMLElement | null;
     board?.focus?.({ preventScroll: true });
-  }, [helpOpen]);
+  }, [helpOpen, tourActive, scienceOpen]);
+
+  const loadExample = useCallback(() => {
+    const s = useEditor.getState();
+    if (s.dirty && s.doc.order.length > 0 && !window.confirm('Replace the current diagram with the example? Unsaved changes will be lost.')) return;
+    loadDocument(sampleDiagram(), { markSaved: true });
+    fitSoon();
+  }, [loadDocument, fitSoon]);
+
+  const startTour = useCallback(() => {
+    setHelpOpen(false);
+    const s = useEditor.getState();
+    if (s.pendingShape) s.armShape(null);
+    if (s.chartBuilder) s.openChartBuilder(null);
+    useTour.getState().start(0);
+  }, []);
 
   return (
     <div className="app">
@@ -95,21 +144,28 @@ export default function App() {
             {'{\u2197}'}
           </span>
           <div>
-            <h1>Flowchart &rarr; TikZ Studio</h1>
-            <p>Draw on the right, compile-ready TikZ on the left</p>
+            <h1>FlowTikZ</h1>
+            <p>Draw on the right · get Overleaf-ready LaTeX on the left</p>
           </div>
         </div>
         <div className="app-bar-actions">
           <button
-            className="btn ghost"
-            onClick={() => loadDocument(sampleDiagram(), { markSaved: true })}
+            className="btn tour-launch"
+            title="A step-by-step animated walkthrough of every part of the app"
+            onClick={startTour}
+            data-action="header-tour"
           >
+            <Icon name="play" />
+            Take the tour
+          </button>
+          <button className="btn" title="Open a worked example flowchart to explore" onClick={loadExample}>
+            <Icon name="sparkles" />
             Load example
           </button>
         </div>
       </header>
 
-      <Toolbar svgRef={svgRef} onShowHelp={() => setHelpOpen(true)} canvasSize={canvasSize} />
+      <Toolbar svgRef={svgRef} onShowHelp={() => setHelpOpen(true)} onStartTour={startTour} canvasSize={canvasSize} />
 
       {recovery && (
         <div className="recovery-bar">
@@ -126,6 +182,7 @@ export default function App() {
               const found = readAutosave();
               if (found) loadDocument(found.diagram, { markSaved: true });
               setRecovery(null);
+              fitSoon();
             }}
           >
             Restore it
@@ -145,9 +202,12 @@ export default function App() {
         right={
           <div className="editor-area">
             <ShapePalette />
-            <ErrorBoundary area="Canvas">
-              <CanvasStage onReady={onSvgReady} />
-            </ErrorBoundary>
+            <div className="canvas-wrap">
+              <ErrorBoundary area="Canvas">
+                <CanvasStage onReady={onSvgReady} />
+              </ErrorBoundary>
+              <SelectionBar />
+            </div>
             <ErrorBoundary area="Properties">
               <PropertyInspector />
             </ErrorBoundary>
@@ -159,7 +219,23 @@ export default function App() {
       <ImportProgress />
       <ImportDialog />
       <ImportReportDialog />
-      {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
+      <ChartBuilder />
+      {scienceMounted && (
+        <ErrorBoundary area="Science editor">
+          <Suspense fallback={null}>
+            <ScienceDialogs />
+          </Suspense>
+        </ErrorBoundary>
+      )}
+      {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} onStartTour={startTour} />}
+      <TourPrompt onStart={startTour} />
+      <Tour
+        onFinish={(choice) => {
+          if (choice === 'example') loadExample();
+          else if (useEditor.getState().doc.order.length === 0) useEditor.getState().armShape('terminator');
+        }}
+      />
+      <TooltipLayer />
     </div>
   );
 }

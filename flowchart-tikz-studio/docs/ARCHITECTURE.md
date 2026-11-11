@@ -62,9 +62,18 @@ src/
 │   ├── hittest.ts          # Point-in-shape and point-near-connector picking
 │   ├── diagram.ts          # Ordering, alignment, deletion, snapping, bounds
 │   ├── defaults.ts         # Factory functions and default styles
-│   ├── shortcuts.ts        # Keyboard letter per shape; one table, read by all
 │   ├── ids.ts              # Stable id allocation
 │   └── sample.ts           # The worked example
+├── charts/                 # Data charts. Pure, like model/.
+│   ├── types.ts            # DataTable, ChartSpec, ChartStyle, chart types, wells
+│   ├── parse.ts            # CSV/TSV/paste reader and .xlsx reader (zip + XML), typing
+│   ├── aggregate.ts        # Filters, grouping, the seven aggregations, sort, top N, bins
+│   ├── layout.ts           # The one geometric description both outputs use
+│   ├── format.ts           # Number formatting shared by canvas and LaTeX
+│   ├── palettes.ts         # Colour themes
+│   ├── defaults.ts         # Default style, suggested first chart, type switching
+│   ├── coerce.ts           # Defensive reader for charts in save files
+│   └── gallery.ts          # Representative charts for tests and compile fixtures
 ├── latex/                  # Model → TikZ. Also pure.
 │   ├── units.ts            # du ↔ cm ↔ pt, coordinate flip, number formatting
 │   ├── escape.ts           # Text escaping and symbol mapping
@@ -72,12 +81,14 @@ src/
 │   ├── styles.ts           # Option builders, library registry, dash patterns
 │   ├── nodes.ts            # Node/shape emitter
 │   ├── edges.ts            # Connector emitter, arrow tips
+│   ├── chart.ts            # Chart emitter: PGFPlots axis + TikZ legend/labels/pies
 │   ├── generator.ts        # Document assembly, traceability map
 │   ├── validate.ts         # Pre-generation checks
 │   └── highlight.ts        # LaTeX tokeniser for the code panel
 ├── canvas/                 # Rendering and interaction
 │   ├── CanvasStage.tsx     # SVG root, pointer state machine, grid, zoom/pan
 │   ├── ShapeView.tsx       # One node
+│   ├── ChartView.tsx       # A chart, drawn from charts/layout.ts
 │   ├── ConnectorView.tsx   # One edge, with arrowheads and label
 │   ├── SelectionLayer.tsx  # Handles, ports, guides, marquee
 │   ├── TextEditorOverlay.tsx
@@ -86,13 +97,16 @@ src/
 │   ├── Toolbar.tsx  ShapePalette.tsx  PropertyInspector.tsx
 │   ├── CodePanel.tsx  ColorField.tsx  SplitPane.tsx
 │   ├── HelpDialog.tsx  StatusBar.tsx  EmptyState.tsx  ErrorBoundary.tsx
+│   ├── ChartBuilder.tsx    # "Chart from data" dialog: data step, build step, preview
+│   └── chart/              # ChartPane, ChartFields (wells), ChartStylePanel, ChartTypePicker
+├── science/                # Maths, circuits, chemistry (see SCIENCE.md)
 ├── state/store.ts          # Zustand store: doc, selection, view, history, applyImport
 ├── state/importStore.ts    # Transient import session, report, reference image
 ├── import/                 # Import pipeline -> IR -> Diagram (see IMPORT.md)
 ├── persistence/            # schema.ts (save format), autosave.ts (recovery)
 ├── export/                 # svg.ts, raster.ts, pdf.ts, file.ts
 ├── hooks/useKeyboardShortcuts.ts
-└── tests/                  # 417 tests, including latexLint.ts and import fixtures
+└── tests/                  # 1364 tests, including latexLint.ts and import fixtures
 ```
 
 Dependencies point one way: `components` and `canvas` may import `model`,
@@ -291,3 +305,28 @@ plus warnings, never a crash. Imported files are parsed as data by a DOM-free,
 entity-safe parser and are never inserted into the page. The app is
 entirely client-side: nothing, including an image being imported, leaves
 the browser, and there are no API keys. Autosave writes only geometry and styling to `localStorage`.
+
+
+## Charts
+
+A chart is an ordinary node (`kind: 'chart'`) carrying a `ChartSpec`: the
+imported table, the field choices, filters and style. Because it is a node it
+moves, resizes, snaps, copies, groups, connects and undoes like every shape.
+
+`charts/aggregate.ts` turns the spec into numbers; `charts/layout.ts` turns
+those into one geometric description (plot rectangle, axis ranges, ticks,
+bar positions, label anchors, colours) in the node's local coordinates. The
+canvas (`canvas/ChartView.tsx`) and the emitter (`latex/chart.ts`) both read
+that object and neither decides anything itself, which is the same guarantee
+the flowchart side gets from sharing one outline function per shape. Text
+boxes use a fixed height and depth on both sides (`text height`/`text depth`
+in TikZ), so an anchor means the same point in the browser and in TeX.
+
+Data tables are immutable: edits replace a table rather than writing into it.
+The store relies on that to share tables between undo snapshots instead of
+copying them, so a long history on a 20,000-row chart stays cheap.
+
+Excel files are read without a spreadsheet library: an `.xlsx` is a zip of
+XML parts, so `charts/parse.ts` reads the zip directory, inflates entries with
+the platform `DecompressionStream`, and parses the parts with the project's
+own hardened XML parser (no entity expansion, depth and size limits).

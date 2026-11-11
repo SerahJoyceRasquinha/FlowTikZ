@@ -11,6 +11,8 @@ import type {
 import { getShapeDef } from '../model/shapes';
 import { ColorField } from './ColorField';
 import { isTransparentBackground } from '../model/meta';
+import { ChartPane } from './chart/ChartPane';
+import { SciencePane, isSciencePaneNode } from './science/SciencePane';
 
 /** Read-only provenance of an imported object, including preserved source properties. */
 function ImportedFrom({ meta }: { meta: ObjectMeta | undefined }) {
@@ -202,7 +204,9 @@ function ShapePane({ nodes }: { nodes: Node[] }) {
     <>
       <div className="inspector-head">
         <span className="eyebrow">{many ? `${nodes.length} shapes` : def.label}</span>
-        <h3>{many ? 'Batch edit' : first.id}</h3>
+        <h3 title={`Object id ${first.id} (used in the LaTeX comments)`}>
+          {many ? 'Batch edit' : first.text.trim().split('\n')[0].slice(0, 40) || `${def.label} ${first.id}`}
+        </h3>
         {def.note && !many && <p className="note">{def.note}</p>}
       </div>
 
@@ -706,8 +710,18 @@ export function PropertyInspector() {
   const edges = selection.map((id) => doc.edges[id]).filter(Boolean) as Edge[];
 
   return (
-    <aside className="inspector" aria-label="Properties">
-      {nodes.length > 0 && edges.length === 0 && <ShapePane nodes={nodes} />}
+    <aside
+      className={`inspector${nodes.length === 1 && edges.length === 0 && nodes[0].kind === 'chart' ? ' wide' : ''}`}
+      aria-label="Properties"
+      data-tour="inspector"
+    >
+      {nodes.length === 1 && edges.length === 0 && nodes[0].kind === 'chart' && nodes[0].chart && (
+        <ChartPane key={nodes[0].id} node={nodes[0]} />
+      )}
+      {nodes.length > 0 && edges.length === 0 && nodes.every(isSciencePaneNode) && <SciencePane nodes={nodes} />}
+      {nodes.length > 0 && edges.length === 0 && !nodes.every(isSciencePaneNode) && !(nodes.length === 1 && nodes[0].kind === 'chart' && nodes[0].chart) && (
+        <ShapePane nodes={nodes} />
+      )}
       {edges.length > 0 && nodes.length === 0 && <EdgePane edges={edges} />}
       {nodes.length > 0 && edges.length > 0 && (
         <>

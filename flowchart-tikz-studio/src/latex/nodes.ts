@@ -6,6 +6,7 @@ import { escapeComment, escapeNodeText } from './escape';
 import { ColorRegistry } from './colors';
 import { LibraryRegistry, shapeOptions, textOptions } from './styles';
 import { UnitContext, coord, fmt, cm } from './units';
+import { emitExtraPaths } from './science';
 
 export interface EmitResult {
   lines: string[];
@@ -263,6 +264,8 @@ export function emitNode(
   const canUseNode =
     mapping &&
     decorations.length === 0 &&
+    !n.flipH &&
+    !n.flipV &&
     !(mapping.shape === 'circle' && Math.abs(n.w - n.h) > 0.5);
 
   if (canUseNode && mapping) {
@@ -344,6 +347,8 @@ export function emitNode(
       ),
     );
   }
+
+  lines.push(...emitExtraPaths(n, ctx, colors, strokeOnly, indent));
 
   // A zero-size coordinate carries the object id so the shape can still be
   // referenced from hand-written TikZ appended after the generated block.

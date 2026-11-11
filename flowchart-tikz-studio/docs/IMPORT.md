@@ -58,7 +58,7 @@ and no file is ever uploaded.
 | draw.io / diagrams.net (`.drawio`, `.xml`) | Parsed from `mxCell`s; compressed and multi-page files supported |
 | Excalidraw (`.excalidraw`) | Parsed from its elements, bindings and groups |
 | Structured diagram JSON (the IR) | Validated, normalised, mapped |
-| Flowchart Studio JSON | Imported as-is (useful with *Insert*) |
+| FlowTikZ diagram JSON | Imported as-is (useful with *Insert*) |
 
 Limits: 25 MB for images, 10 MB for SVG, 20 MB for draw.io/JSON; images larger
 than 20 000 px per side or 60 megapixels are refused before decoding.

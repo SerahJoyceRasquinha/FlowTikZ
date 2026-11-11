@@ -15,6 +15,9 @@ interface Props {
 export function ColorField({ label, value, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
+  // While the hex box is being typed in it shows the draft; otherwise the
+  // real value, so a swatch pick or another selection is reflected at once.
+  const [editing, setEditing] = useState(false);
 
   const commitHex = (raw: string) => {
     const hex = normalizeHex(raw);
@@ -33,14 +36,20 @@ export function ColorField({ label, value, onChange }: Props) {
         />
         <input
           className="hex"
-          value={draft.startsWith('#') ? draft : value}
+          value={editing ? draft : value}
           onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => commitHex(draft)}
+          onBlur={() => {
+            commitHex(draft);
+            setEditing(false);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') commitHex(draft);
             e.stopPropagation();
           }}
-          onFocus={() => setDraft(value)}
+          onFocus={() => {
+            setDraft(value);
+            setEditing(true);
+          }}
           spellCheck={false}
         />
         <input
