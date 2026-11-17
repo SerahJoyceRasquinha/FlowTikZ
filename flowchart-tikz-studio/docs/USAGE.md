@@ -5,7 +5,7 @@
 | Region | Purpose |
 | --- | --- |
 | Top bar | Document identity, **Take the tour** and **Load example** |
-| Toolbar | Tools (Select, Pan, Connect, Text), Chart from data, Undo/Redo, zoom, **View** menu (grid, snap), **File** menu (New, Open, Import diagram, Clear canvas), **Save**, **Export** menu, **Help** menu (Guided tour, Help & shortcuts) |
+| Toolbar | Tools (Select, Pan, Connect, Text), Chart from data, **Templates**, Math / Physics / Chem, Undo/Redo, zoom, **View** menu (grid, snap), **File** menu (New, Open, Import diagram, Open LaTeX project, Clear canvas), **Save**, **Export** menu, **Help** menu (Guided tour, Help & shortcuts) |
 | Selection bar | Floats above the canvas only while something is selected: Align, Arrange, Duplicate, Group/Ungroup, Lock, Delete |
 | Left panel | Generated LaTeX, with mode toggle, copy, download, search and issues |
 | Palette | 29 flowchart symbols, filterable, grouped by category; fold it away with « |
@@ -55,7 +55,33 @@ while the board has focus never arms a shape. The tool letters `V`, `H` and
 
 Everything with a modifier (`Ctrl/Cmd + Z`, `Ctrl/Cmd + S`, …) and the editing
 keys (`Delete`, `Enter`, `F2`, the arrows, `Esc`, `?`) work from anywhere in
-the application, as they always have.
+the application. `Ctrl/Cmd + +`, `-` and `0` are deliberately **not** taken by
+the app: they zoom the whole page, as in any other website.
+
+### Undo and redo, everywhere
+
+| Where you are | What `Ctrl/Cmd + Z` / `Ctrl/Cmd + Y` do |
+| --- | --- |
+| Canvas, toolbar, any button | Undo / redo the last change to the diagram |
+| A field in the property panel | The same diagram history. Everything typed during one visit to a field is one step |
+| Typing inside a shape | Takes back the typing first; when there is nothing left, closes the box and undoes the previous canvas change |
+| Formula, chemistry, molecule, chart editors | The editor's own history (typing, structures, symbols, element buttons, reaction terms, bonds, chart settings). The canvas history is untouched until you press Insert/Apply, which is then one step |
+| Search boxes | The browser's own text undo |
+
+`Ctrl/Cmd + Shift + Z` is accepted everywhere as redo. The keys are matched by
+physical position too, so they work on Cyrillic, Greek and other layouts.
+
+## Templates
+
+Press **Templates** in the toolbar (also in the Physics and Chem menus and on
+the empty canvas). Choose **Flowcharts**, **Mathematics**, **Physics** or
+**Chemistry**, or type in the search box — it searches every tab and jumps to
+the one with a match. Click a card to insert it. It lands in the middle of the
+view, or right beside your existing work if that spot is taken, and stays
+selected so you can drag it into place. Every piece is an ordinary object:
+double-click a formula to open it in the formula editor, retype a flowchart
+box, re-value a resistor. Arrow keys move between cards; `Esc` clears the
+search, then closes.
 
 ## Charts from data
 
@@ -164,17 +190,16 @@ Multi-selections resize and rotate as a block.
 
 | Action | How |
 | --- | --- |
-| Pan | Middle-drag, hold `Alt` and drag, the **Pan** tool, or two-finger scroll |
-| Zoom in | `Ctrl/Cmd` + `+` (also `Ctrl` + `=` and numpad `+`), or the toolbar **+** |
-| Zoom out | `Ctrl/Cmd` + `-` (also numpad `-`), or the toolbar **−** |
-| Zoom at the pointer | `Ctrl/Cmd` + scroll wheel |
-| Reset zoom | `Ctrl/Cmd + 0`, or click the zoom percentage in the toolbar |
-| Fit diagram | `Ctrl/Cmd + 1`, or **Fit** |
+| Pan | Hold `Space` and drag, middle-drag, hold `Alt` and drag, the **Pan** tool, or two-finger scroll |
+| Zoom the drawing in | `+` (or `=`, numpad `+`) while the board has focus, or the toolbar **+** |
+| Zoom the drawing out | `-` (or numpad `-`) while the board has focus, or the toolbar **−** |
+| Zoom at the pointer | `Ctrl/Cmd` + scroll wheel, or pinch on a trackpad |
+| Reset the drawing zoom | `Shift + 0`, or click the zoom percentage in the toolbar |
+| Fit diagram | `Shift + 1`, or **Fit** |
+| Zoom the whole page | `Ctrl/Cmd` + `+` / `-` / `0` — the browser's own page zoom, untouched by the app |
 
 Zooming with the wheel keeps the point under the cursor fixed; the keyboard and
-toolbar keep the middle of the board fixed. The zoom chords are taken by the
-app even while a text field has focus, so the browser never zooms the whole
-interface by mistake.
+toolbar keep the middle of the board fixed.
 
 The **Symbols** palette can be folded away with **«** (and back with **»**) to
 give the canvas more room, which helps when working on charts.
@@ -288,6 +313,14 @@ conversion report for text recognised with low confidence.
 
 Imported diagrams export on a transparent background. Change that under
 **Export background** in the inspector with nothing selected.
+
+## LaTeX projects
+
+**File → Open LaTeX project (.zip)** opens an Overleaf-style project. The
+document replaces the canvas; click where a drawing should go, press **Draw
+here**, draw, and press **Insert**. Packages are added to the preamble for you
+and the text below moves down. **Download .zip** saves the whole project. Full
+details: [`PROJECTS.md`](PROJECTS.md).
 
 ## Keyboard shortcuts
 

@@ -12,6 +12,7 @@ import { useImport } from '../state/importStore';
 import { applyZoom } from '../hooks/useKeyboardShortcuts';
 import { useTour, type TourMenu } from '../state/tourStore';
 import { Icon } from './Icon';
+import { useProject } from '../state/projectStore';
 
 interface Props {
   svgRef: React.MutableRefObject<SVGSVGElement | null>;
@@ -20,7 +21,7 @@ interface Props {
   canvasSize: { width: number; height: number };
 }
 
-type MenuId = Exclude<TourMenu, null> | 'physics' | 'chemistry';
+type MenuId = Exclude<TourMenu, null>;
 
 /** One row inside a dropdown: icon, a clear name, and a line saying what it does. */
 export function MenuItem({
@@ -69,6 +70,11 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
   const s = useEditor();
   const fileInput = useRef<HTMLInputElement>(null);
   const importInput = useRef<HTMLInputElement>(null);
+  const projectInput = useRef<HTMLInputElement>(null);
+  const projectOpen = useProject((p) => p.project !== null);
+  const projectBusy = useProject((p) => p.importing !== null && !p.importing.error);
+  /** In project mode a tool first opens a drawing in the page; returns false if it cannot. */
+  const ready = () => !projectOpen || useProject.getState().ensureFrame();
   const importing = useImport((st) => st.session?.status === 'running');
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
 
@@ -104,8 +110,11 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
 
   const doExport = async (kind: 'svg' | 'png' | 'pdf') => {
     setOpenMenu(null);
-    const svg = svgRef.current;
-    if (!svg) return;
+    const svg = svgRef.current?.isConnected ? svgRef.current : (document.querySelector('.canvas-svg') as SVGSVGElement | null);
+    if (!svg) {
+      s.setStatus(projectOpen ? 'Open a drawing in the document first; Export saves the drawing, and Download .zip saves the project.' : 'Nothing to export.');
+      return;
+    }
     const name = slugify(s.doc.name);
     try {
       if (kind === 'svg') {
@@ -125,6 +134,10 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
 
   const saveJson = () => {
     setOpenMenu(null);
+    if (projectOpen) {
+      void useProject.getState().download();
+      return;
+    }
     downloadText(serialize(s.doc), `${slugify(s.doc.name)}.json`, 'application/json');
     s.markSaved();
     s.setStatus('Diagram saved as JSON.');
@@ -162,10 +175,11 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
       className={`btn tool${s.tool === id && !s.pendingShape ? ' on' : ''}`}
       onClick={() => s.setTool(id)}
       title={tip}
+      aria-label={label}
       aria-pressed={s.tool === id}
     >
       <Icon name={icon} />
-      {label}
+      <span className="tool-label">{label}</span>
       <span className="kbd-hint" aria-hidden="true">
         {key}
       </span>
@@ -183,28 +197,40 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
           className={`btn tool${s.pendingShape === 'text' ? ' on' : ''}`}
           onClick={() => s.armShape('text')}
           title="Text label: click this, then click on the canvas where the text should go"
+          aria-label="Text"
         >
           <Icon name="text" />
-          Text
+          <span className="tool-label">Text</span>
         </button>
       </div>
 
       <button
         className="btn tool chart-btn"
-        onClick={() => s.openChartBuilder({ mode: 'new' })}
+        onClick={() => ready() && s.openChartBuilder({ mode: 'new' })}
         title="Build a bar, line, pie or other chart from an Excel or CSV file"
         data-action="chart"
         data-tour="chart"
       >
         <Icon name="chart" />
-        Chart from data
+        Chart<span className="label-long"> from data</span>
+      </button>
+
+      <button
+        className="btn tool tpl-btn"
+        onClick={() => ready() && s.openTemplates('flow')}
+        title="Ready-made flowcharts, formulas, physics circuits and laws, chemical reactions and molecules"
+        data-action="templates"
+        data-tour="templates"
+      >
+        <Icon name="templates" />
+        Templates
       </button>
 
       {/* -------------------------------------------------------- science */}
       <div className="tool-group sci-group" role="group" aria-label="Science tools" data-tour="science">
         <button
           className="btn tool"
-          onClick={() => s.openScienceDialog({ kind: 'math' })}
+          onClick={() => ready() && s.openScienceDialog({ kind: 'math' })}
           title="Mathematics: build an equation with a live preview"
           aria-label="Mathematics"
           data-action="math"
@@ -212,7 +238,7 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
           <Icon name="sigma" />
           <span className="sci-label">Math</span>
         </button>
-        <div className="menu-wrap">
+        <div className="menu-wrap" data-tour="physics-menu">
           <button
             className={`btn tool${menu === 'physics' ? ' on' : ''}`}
             onClick={() => toggle('physics')}
@@ -230,11 +256,13 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
             <div className="menu" role="menu">
               <MenuItem icon="resistor" label="Circuit components" sub="Resistors, sources, transistors, wires" onClick={run(() => s.setPaletteDomain('circuit'))} data-action="physics-circuit" />
               <MenuItem icon="bolt" label="Physics diagram parts" sub="Forces, springs, lenses, fields" onClick={run(() => s.setPaletteDomain('physics'))} data-action="physics-parts" />
-              <MenuItem icon="sigma" label="Physics symbols and equations" sub="F, E, λ, constants, units" onClick={run(() => s.openScienceDialog({ kind: 'math', library: 'physics' }))} data-action="physics-symbols" />
+              <MenuItem icon="sigma" label="Physics symbols and equations" sub="F, E, λ, constants, units" onClick={run(() => ready() && s.openScienceDialog({ kind: 'math', library: 'physics' }))} data-action="physics-symbols" />
+              <div className="menu-sep" />
+              <MenuItem icon="templates" label="Physics templates" sub="Ready-made laws, circuits and diagrams" onClick={run(() => ready() && s.openTemplates('physics'))} data-action="physics-templates" />
             </div>
           )}
         </div>
-        <div className="menu-wrap">
+        <div className="menu-wrap" data-tour="chem-menu">
           <button
             className={`btn tool${menu === 'chemistry' ? ' on' : ''}`}
             onClick={() => toggle('chemistry')}
@@ -250,9 +278,11 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
           </button>
           {menu === 'chemistry' && (
             <div className="menu" role="menu">
-              <MenuItem icon="text" label="Chemical formula" sub="H₂SO₄, Fe³⁺, isotopes, states" onClick={run(() => s.openScienceDialog({ kind: 'chem', tab: 'formula' }))} data-action="chem-formula" />
-              <MenuItem icon="connect" label="Reaction" sub="Arrows, conditions, multi-step, balance check" onClick={run(() => s.openScienceDialog({ kind: 'chem', tab: 'reaction' }))} data-action="chem-reaction" />
-              <MenuItem icon="molecule" label="Molecule structure" sub="Draw atoms, bonds and rings" onClick={run(() => s.openScienceDialog({ kind: 'molecule' }))} data-action="chem-molecule" />
+              <MenuItem icon="text" label="Chemical formula" sub="H₂SO₄, Fe³⁺, isotopes, states" onClick={run(() => ready() && s.openScienceDialog({ kind: 'chem', tab: 'formula' }))} data-action="chem-formula" />
+              <MenuItem icon="connect" label="Reaction" sub="Arrows, conditions, multi-step, balance check" onClick={run(() => ready() && s.openScienceDialog({ kind: 'chem', tab: 'reaction' }))} data-action="chem-reaction" />
+              <MenuItem icon="molecule" label="Molecule structure" sub="Draw atoms, bonds and rings" onClick={run(() => ready() && s.openScienceDialog({ kind: 'molecule' }))} data-action="chem-molecule" />
+              <div className="menu-sep" />
+              <MenuItem icon="templates" label="Chemistry templates" sub="Common reactions, molecules and formulas" onClick={run(() => ready() && s.openTemplates('chem'))} data-action="chem-templates" />
             </div>
           )}
         </div>
@@ -274,38 +304,40 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
 
       {/* ----------------------------------------------------------- view */}
       <div className="tool-group" role="group" aria-label="View" data-tour="view">
-        <button className="btn icon-only" onClick={() => applyZoom('out', canvasSize)} title="Zoom out (Ctrl + -)" aria-label="Zoom out">
+        <button className="btn icon-only" onClick={() => applyZoom('out', canvasSize)} title="Zoom the drawing out (- key on the canvas). Ctrl + - zooms the whole page" aria-label="Zoom out">
           <Icon name="minus" />
         </button>
         <button
           className="btn zoom-readout"
           onClick={() => applyZoom('reset', canvasSize)}
-          title="Current zoom. Click to go back to 100% (Ctrl + 0)"
+          title="Drawing zoom. Click to go back to 100% (Shift + 0 on the canvas)"
           aria-label={`Zoom ${Math.round(s.view.zoom * 100)} percent, click to reset`}
         >
           {Math.round(s.view.zoom * 100)}%
         </button>
-        <button className="btn icon-only" onClick={() => applyZoom('in', canvasSize)} title="Zoom in (Ctrl + +)" aria-label="Zoom in">
+        <button className="btn icon-only" onClick={() => applyZoom('in', canvasSize)} title="Zoom the drawing in (+ key on the canvas). Ctrl + + zooms the whole page" aria-label="Zoom in">
           <Icon name="plus" />
         </button>
         <button
           className="btn"
           onClick={() => applyZoom('fit', canvasSize)}
-          title="Fit the whole diagram on screen (Ctrl + 1)"
+          title="Fit the whole diagram on screen (Shift + 1 on the canvas)"
+          aria-label="Fit"
         >
           <Icon name="fit" />
-          Fit
+          <span className="label-collapse">Fit</span>
         </button>
         <div className="menu-wrap" data-tour="view-menu">
           <button
             className={`btn${menu === 'view' ? ' on' : ''}`}
             onClick={() => toggle('view')}
-            title="Grid and snapping options"
+            title="View: grid and snapping options"
+            aria-label="View"
             aria-haspopup="menu"
             aria-expanded={menu === 'view'}
           >
             <Icon name="eye" />
-            View
+            <span className="label-collapse">View</span>
             <span className="caret">
               <Icon name="chevronDown" size={14} />
             </span>
@@ -380,7 +412,7 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
               label="Open"
               sub="A .json file saved by FlowTikZ"
               onClick={run(() => fileInput.current?.click())}
-              title="Open a diagram saved by this app (.json)"
+              title="Open a diagram saved by this app (.json) — Ctrl+O"
               data-action="open"
             />
             <MenuItem
@@ -392,6 +424,24 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
               title={`Import an external diagram and convert it to editable shapes: ${SUPPORTED_SUMMARY}`}
               data-action="import"
             />
+            <MenuItem
+              icon="folder"
+              label={projectBusy ? 'Opening project…' : 'Open LaTeX project (.zip)'}
+              sub="Overleaf-style zip → draw inside the document"
+              onClick={run(() => projectInput.current?.click())}
+              disabled={projectBusy}
+              title="Open a LaTeX project zip (main .tex with its folders), preview it, and draw figures straight into the document"
+              data-action="open-project"
+            />
+            {projectOpen && (
+              <MenuItem
+                icon="x"
+                label="Close LaTeX project"
+                sub="Back to the plain drawing board"
+                onClick={run(() => useProject.getState().close())}
+                data-action="menu-close-project"
+              />
+            )}
             <div className="menu-sep" />
             <MenuItem
               icon="eraser"
@@ -410,9 +460,14 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
         )}
       </div>
 
-      <button className="btn success" onClick={saveJson} title="Save your diagram to a .json file you can open later (Ctrl+S)" data-tour="save">
-        <Icon name="save" />
-        Save
+      <button
+        className="btn success"
+        onClick={saveJson}
+        title={projectOpen ? 'Download the LaTeX project, with your drawings, as a .zip (Ctrl+S)' : 'Save your diagram to a .json file you can open later (Ctrl+S)'}
+        data-tour="save"
+      >
+        <Icon name={projectOpen ? 'download' : 'save'} />
+        {projectOpen ? 'Download .zip' : 'Save'}
       </button>
 
       <div className="menu-wrap" data-tour="export">
@@ -491,10 +546,25 @@ export function Toolbar({ svgRef, onShowHelp, onStartTour, canvasSize }: Props) 
         }}
       />
       <input
+        ref={projectInput}
+        type="file"
+        accept=".zip,application/zip,application/x-zip-compressed"
+        style={{ display: 'none' }}
+        aria-label="Open a LaTeX project zip"
+        data-input="project"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void useProject.getState().importZip(file);
+          e.target.value = '';
+        }}
+      />
+      <input
         ref={fileInput}
         type="file"
         accept="application/json,.json"
         style={{ display: 'none' }}
+        aria-label="Open a saved diagram"
+        data-input="open"
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) void openJson(file);

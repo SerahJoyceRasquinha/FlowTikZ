@@ -23,6 +23,7 @@ import {
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { portAnchor } from '../model/routing';
 import { EmptyState } from '../components/EmptyState';
+import { useProject } from '../state/projectStore';
 import { useImport } from '../state/importStore';
 import { isCircuitKind } from '../science/physics/circuits';
 import { openScienceEditor, SHAPE_DRAG_TYPE } from '../science/editing';
@@ -99,6 +100,8 @@ export function CanvasStage({ onReady }: Props) {
   const doc = useEditor((s) => s.doc);
   const view = useEditor((s) => s.view);
   const tool = useEditor((s) => s.tool);
+  const spacePan = useEditor((s) => s.spacePan);
+  const inProjectFrame = useProject((p) => p.frame !== null);
   const pendingShape = useEditor((s) => s.pendingShape);
   const selection = useEditor((s) => s.selection);
   const guides = useEditor((s) => s.guides);
@@ -254,7 +257,7 @@ export function CanvasStage({ onReady }: Props) {
     refreshRect();
     focusBoard();
 
-    if (e.button === 1 || (e.button === 0 && tool === 'pan') || e.altKey) {
+    if (e.button === 1 || (e.button === 0 && (tool === 'pan' || store.getState().spacePan)) || e.altKey) {
       interaction.current = {
         type: 'pan',
         startClient: { x: e.clientX, y: e.clientY },
@@ -811,7 +814,7 @@ export function CanvasStage({ onReady }: Props) {
       ? 'grabbing'
       : it.type === 'move'
         ? 'grabbing'
-        : tool === 'pan'
+        : tool === 'pan' || spacePan
           ? 'grab'
           : tool === 'shape'
             ? 'copy'
@@ -992,7 +995,9 @@ export function CanvasStage({ onReady }: Props) {
       </svg>
 
       {editingNode && <TextEditorOverlay node={editingNode} view={view} />}
-      {doc.order.length === 0 && !editingNode && <EmptyState />}
+      {/* The welcome card steps aside once a symbol is armed (so the middle of the
+          board can be clicked) and inside a LaTeX project's drawing frame. */}
+      {doc.order.length === 0 && !editingNode && !pendingShape && !inProjectFrame && <EmptyState />}
     </div>
   );
 }

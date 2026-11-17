@@ -40,6 +40,7 @@ const UNICODE: Record<string, string> = {
   '×': '$\\times$',
   '÷': '$\\div$',
   '±': '$\\pm$',
+  '\u2212': '$-$',
   '→': '$\\rightarrow$',
   '←': '$\\leftarrow$',
   '↔': '$\\leftrightarrow$',

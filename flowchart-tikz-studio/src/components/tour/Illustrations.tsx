@@ -78,6 +78,80 @@ export function Illustration({ kind }: { kind: Kind }) {
           </span>
         </div>
       );
+    case 'templates':
+      return (
+        <div className="illus illus-templates" aria-hidden="true">
+          <div className="tp-card tp-1">
+            <svg viewBox="0 0 60 40">
+              <rect x="20" y="2" width="20" height="8" rx="4" />
+              <path d="M30 10v5" />
+              <polygon points="30,15 40,21 30,27 20,21" />
+              <path d="M30 27v5" />
+              <rect x="20" y="32" width="20" height="6" rx="3" />
+            </svg>
+            <span>Flowchart</span>
+          </div>
+          <div className="tp-card tp-2">
+            <b className="tp-tex">x = −b ± √…<br />───────<br />2a</b>
+            <span>Formula</span>
+          </div>
+          <div className="tp-card tp-3">
+            <svg viewBox="0 0 60 40">
+              <path d="M6 30V8h14l3-4 4 8 4-8 4 8 3-4h16v22H6" />
+              <path d="M2 18h8M6 14v8" />
+            </svg>
+            <span>Circuit</span>
+          </div>
+          <div className="tp-card tp-4">
+            <svg viewBox="0 0 60 40">
+              <polygon points="30,4 46,13 46,31 30,40 14,31 14,13" />
+              <path d="M30 9l11 6.5M41 29l-11 6.5M19 15.5v13" />
+            </svg>
+            <span>Molecule</span>
+          </div>
+        </div>
+      );
+    case 'science':
+      return (
+        <div className="illus illus-science" aria-hidden="true">
+          <span className="sc-chip sc-math">Σ  ∫  √x  ½</span>
+          <span className="sc-chip sc-phys">⚡ R  C  L  F⃗</span>
+          <span className="sc-chip sc-chem">H₂O  ⇌  ⌬</span>
+        </div>
+      );
+    case 'formula':
+      return (
+        <div className="illus illus-formula" aria-hidden="true">
+          <span className="fx-pre">x =</span>
+          <span className="fx-frac">
+            <span className="fx-box fx-b1">−b ± √<i>b²−4ac</i></span>
+            <span className="fx-bar" />
+            <span className="fx-box fx-b2">2a</span>
+          </span>
+          <span className="fx-keys">
+            <kbd>^</kbd>
+            <kbd>_</kbd>
+            <kbd>Ctrl</kbd>+<kbd>Z</kbd>
+          </span>
+        </div>
+      );
+    case 'undo':
+      return (
+        <div className="illus illus-undo" aria-hidden="true">
+          <span className="ud-key">
+            <kbd>Ctrl</kbd>+<kbd>Z</kbd>
+            <small>undo</small>
+          </span>
+          <span className="ud-shapes">
+            <i className="ud-a" />
+            <i className="ud-b" />
+          </span>
+          <span className="ud-key">
+            <kbd>Ctrl</kbd>+<kbd>Y</kbd>
+            <small>redo</small>
+          </span>
+        </div>
+      );
     case 'finish':
       return (
         <div className="illus illus-finish" aria-hidden="true">

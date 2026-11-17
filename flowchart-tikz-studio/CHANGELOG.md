@@ -1,5 +1,94 @@
 # Changelog
 
+## November 2026 (1.3.0): LaTeX projects
+
+### Added
+- **Open LaTeX project (.zip)** in the File menu. Imports Overleaf-style
+  project zips: finds the main `.tex` file (asks when there is more than one
+  candidate), follows `\input`/`\include`/`\subfile`/`\import`, and shows the
+  folder tree, the LaTeX of any file and a preview of the document in place of
+  the canvas.
+- **Draw inside the document.** Click a spot, press **Draw here** (or `Enter`),
+  draw in the frame that opens in the page, and **Insert** (`Ctrl+Enter`). The
+  text below moves down. Exact or floating placement, captions with automatic
+  labels, editing and removing figures later.
+- **Packages added where they belong.** Only missing packages, next to the
+  document's own (before `hyperref`), or in a separate preamble file;
+  definitions just before `\begin{document}`. Figures are capped at the text
+  width, so margins and layout never change.
+- **Download .zip** (`Ctrl+S` in project mode) with the original folder layout,
+  encodings and line endings; untouched files are copied byte for byte.
+  **Copy LaTeX** and **.tex** for the open file.
+- Clear errors when a zip has no main file, no `.tex` files, is empty, is not
+  a zip or is damaged. Unsafe paths are dropped.
+- Large projects: streaming reader and writer with Zip64. Tested with a 23 MB
+  main file, 70,000 files and 4.5 GB archives; long documents are rendered in
+  windows.
+- Guided tour step and Help section for LaTeX projects. New
+  [`docs/PROJECTS.md`](docs/PROJECTS.md).
+
+### Fixed
+- The guided tour's **Clear canvas** hop pointed at the wrong File-menu item
+  once a new item was added; hops now use stable selectors.
+
+## November 2026: templates, undo everywhere, standard shortcuts
+
+### Added
+- **Template library** (toolbar → **Templates**; also in the Physics and Chem
+  menus and on the empty canvas). 190 ready-made, fully editable templates:
+  - **Flowcharts (17):** simple process, IPO, if/else, switch, while, for and
+    do-while loops, largest of two, even/odd, sum of n, factorial, binary
+    search, login, try/catch, online order, waterfall life cycle, PDCA.
+  - **Mathematics (72):** algebra, calculus, trigonometry, geometry,
+    statistics & probability, linear algebra, series & numbers.
+  - **Physics (57):** laws and equations (mechanics, electricity & magnetism,
+    waves & optics, thermodynamics, modern physics) and diagrams — series,
+    parallel, RC, voltage divider, LED and meter circuits; free-body, incline,
+    spring–mass, pendulum, convex lens, two charges.
+  - **Chemistry (44):** common, acid–base, industrial, redox, organic and
+    nuclear reactions (mhchem), chemistry formulas (pH, Kc, Arrhenius, Nernst,
+    Gibbs…) and molecules (chemfig).
+  Live previews drawn by the canvas renderers, category tabs with counts, a
+  search across every tab, keyboard navigation. Inserting is one undo step,
+  lands in the middle of the view or right beside existing work (never on top
+  of it), and stays selected.
+- **Undo / redo everywhere.** `Ctrl/Cmd + Z`, `Ctrl/Cmd + Y` and
+  `Ctrl/Cmd + Shift + Z` now work in the property panel (one step per visit to
+  a field instead of one per keystroke), while typing inside a shape (typing
+  first, then the canvas), and inside the formula editor (now also in LaTeX
+  mode and for inserted symbols), the chemistry editor (new: formula text,
+  element buttons, reaction terms, arrows, conditions), the molecule editor
+  (keyboard support; a whole drag is one step) and the chart builder (new,
+  with Undo/Redo buttons). Works on non-Latin keyboard layouts.
+- **Everyday shortcuts:** `Ctrl/Cmd + O` opens a saved diagram,
+  `Ctrl/Cmd + ]` / `[` (with Shift: to front / back) change layer order,
+  `Space + drag` pans with any tool, `+` / `-`, `Shift + 0` and `Shift + 1`
+  zoom the drawing while the board has focus.
+- **Guided tour:** new steps for Templates, the science tools, the formula
+  editor, the Physics and Chemistry menus and the Flow / Circuit / Physics
+  symbol sets; the undo and zoom steps explain undo-everywhere and page zoom
+  (22 steps).
+- Help dialog lists shortcuts in groups (Editing, Tools, Canvas & view, Files,
+  In the editors, Browser).
+
+### Changed
+- **`Ctrl/Cmd + +`, `-`, `0` zoom the web page again** (the browser's own page
+  zoom), as users expect on every site; `Ctrl + 1` is left to the browser's
+  tab switching. The drawing zoom moved to the keys listed above, the toolbar
+  and `Ctrl + wheel`.
+- `Ctrl + C`, `Ctrl + X` and `Ctrl + A` act on text you have highlighted in the
+  LaTeX panel instead of on the shapes.
+- The toolbar stays on one row from 1280 px to 2560 px wide: labels fold into
+  icons (with tooltips and accessible names) in a fixed order as the window
+  narrows.
+- The typographic minus sign (−) in shape text is emitted as `$-$`.
+
+### Tests
+- 1626 tests (was 1364): new `undo.ui`, `templates` and `templates.ui` suites;
+  zoom tests rewritten for page zoom; tour tests for the new steps; four new
+  pdfLaTeX template fixtures. Exercised in real Chrome against the production
+  build (see `docs/TESTING.md`).
+
 ## November 2026: mathematics, physics and chemistry
 
 ### Added

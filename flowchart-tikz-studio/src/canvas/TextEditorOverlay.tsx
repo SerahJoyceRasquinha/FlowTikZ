@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { undoChord, useUndoable } from '../hooks/undo';
 import type { Node } from '../model/types';
 import { useEditor } from '../state/store';
 import { FONT_STACK } from './textLayout';
@@ -14,13 +15,19 @@ interface Props {
  * as they type.
  */
 export function TextEditorOverlay({ node, view }: Props) {
-  const [value, setValue] = useState(node.text);
+  /*
+   * The text keeps its own history while it is being typed, so Ctrl+Z takes
+   * back words in this box first; once there is nothing left to take back,
+   * Ctrl+Z leaves the box and undoes the previous change on the canvas.
+   */
+  const text = useUndoable<string>(node.text);
+  const value = text.value;
   const ref = useRef<HTMLTextAreaElement>(null);
   const commit = useEditor((s) => s.commit);
   const setEditingNode = useEditor((s) => s.setEditingNode);
 
   useEffect(() => {
-    setValue(node.text);
+    text.reset(node.text);
     const t = setTimeout(() => {
       ref.current?.focus();
       ref.current?.select();
@@ -47,10 +54,27 @@ export function TextEditorOverlay({ node, view }: Props) {
       ref={ref}
       className="text-overlay"
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => text.set(e.target.value, { coalesce: 'typing' })}
       onBlur={() => finish(true)}
       onKeyDown={(e) => {
         e.stopPropagation();
+        const chord = undoChord(e);
+        if (chord) {
+          e.preventDefault();
+          if (chord === 'undo') {
+            if (text.canUndo) text.undo();
+            else {
+              finish(true);
+              useEditor.getState().undo();
+            }
+          } else if (text.canRedo) {
+            text.redo();
+          } else {
+            finish(true);
+            useEditor.getState().redo();
+          }
+          return;
+        }
         if (e.key === 'Escape') {
           e.preventDefault();
           finish(false);

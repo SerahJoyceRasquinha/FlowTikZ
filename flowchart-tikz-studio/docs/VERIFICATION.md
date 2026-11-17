@@ -47,6 +47,24 @@ PASS  09-chart-snippet-in-article  (1 page, 612x792 pt)
 All fixtures compiled.
 ```
 
+### Template fixtures (November 2026)
+
+`npm run latex:fixtures` also writes one page per template category, each
+holding every template exactly as the Templates dialog inserts it:
+
+```
+PASS  19-templates-flowcharts   (1 page, 1179.18x1886.58 pt)
+PASS  20-templates-mathematics  (1 page, 1403.85x773.674 pt)
+PASS  21-templates-physics      (1 page, 1338.04x962.09 pt)
+```
+
+`22-templates-chemistry` additionally needs `chemfig`, whose current version
+loads `simplekv`; on a TeX installation without `simplekv` (as on the machine
+this run was made on) it stops at `\input simplekv.tex`, exactly like the
+existing molecule fixtures 16–18. With the molecules removed, every reaction
+and chemistry formula on that page compiled clean. On Overleaf or a full TeX
+Live, chemfig and simplekv are present.
+
 ## What each fixture covers
 
 | Fixture | Covers |

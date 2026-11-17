@@ -129,4 +129,56 @@ describe('guided tour', () => {
       for (const h of s.hops ?? []) expect(document.querySelector(h.selector), `${s.id}: ${h.label}`).toBeTruthy();
     }
   });
+
+  it('covers the science tools, templates and the everywhere-undo', () => {
+    const ids = TOUR_STEPS.map((st) => st.id);
+    for (const id of ['templates', 'science', 'formula', 'physics-menu', 'chem-menu', 'symbol-sets', 'history']) {
+      expect(ids, id).toContain(id);
+    }
+    // Templates come right after charts, before the general editing tools.
+    expect(ids.indexOf('templates')).toBe(ids.indexOf('chart') + 1);
+    const text = (id: string) => {
+      const div = document.createElement('div');
+      const r = createRoot(div);
+      act(() => r.render(<>{TOUR_STEPS.find((st) => st.id === id)!.body}</>));
+      const t = div.textContent ?? '';
+      act(() => r.unmount());
+      return t;
+    };
+    expect(text('templates')).toMatch(/flowcharts.*formulas.*physics.*chemistry/is);
+    expect(text('formula')).toMatch(/superscript/);
+    expect(text('formula')).toMatch(/symbol library/);
+    expect(text('history')).toMatch(/everywhere/i);
+    expect(text('history')).toMatch(/formula, chemistry, molecule and chart editors/);
+    expect(text('view')).toMatch(/whole page/);
+  });
+
+  it('opens the Physics and Chemistry menus on their steps and closes them after', () => {
+    render();
+    act(() => useTour.getState().start(0));
+    act(() => useTour.getState().goto(TOUR_STEPS.findIndex((st) => st.id === 'physics-menu')));
+    expect($('[data-action="physics-templates"]')).toBeTruthy();
+    expect($('[data-action="physics-circuit"]')).toBeTruthy();
+    act(() => useTour.getState().goto(TOUR_STEPS.findIndex((st) => st.id === 'chem-menu')));
+    expect($('[data-action="physics-templates"]')).toBeNull();
+    expect($('[data-action="chem-templates"]')).toBeTruthy();
+    act(() => useTour.getState().exit());
+    expect(document.querySelectorAll('.menu').length).toBe(0);
+    expect(consoleErrors).toEqual([]);
+  });
+
+  it('closes an open editor or the template library before it starts', async () => {
+    render();
+    act(() => useEditor.getState().openTemplates('math'));
+    for (let i = 0; i < 100 && !$('[aria-label="Template library"]'); i++) {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 30));
+      });
+    }
+    expect($('[aria-label="Template library"]')).toBeTruthy();
+    click($('[data-action="header-tour"]'));
+    expect($('[aria-label="Template library"]')).toBeNull();
+    expect(useTour.getState().active).toBe(true);
+  });
 });
+

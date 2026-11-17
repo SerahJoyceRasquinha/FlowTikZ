@@ -38,6 +38,7 @@ export function SymbolPicker({
           value={query}
           placeholder="Search symbols, e.g. integral, ohm, arrow"
           aria-label="Search symbols"
+          data-native-undo=""
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.stopPropagation()}
         />

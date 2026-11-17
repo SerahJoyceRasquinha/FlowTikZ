@@ -74,6 +74,14 @@ src/
 │   ├── defaults.ts         # Default style, suggested first chart, type switching
 │   ├── coerce.ts           # Defensive reader for charts in save files
 │   └── gallery.ts          # Representative charts for tests and compile fixtures
+├── project/                # LaTeX project zips. Pure, no React.
+│   ├── zip.ts              # Streaming zip reader (Zip64, path safety, bomb guard, CRC)
+│   ├── zipWriter.ts        # Zip writer: raw copies of untouched entries, Zip64
+│   ├── texScan.ts          # Offset-preserving TeX scanning, main-file detection
+│   ├── document.ts         # Source-mapped blocks across \input/\include
+│   ├── figure.ts           # Insert/replace/remove figures and packages
+│   ├── layout.ts           # Page geometry, numbering, .bib
+│   └── project.ts          # Load, decode, export a project
 ├── latex/                  # Model → TikZ. Also pure.
 │   ├── units.ts            # du ↔ cm ↔ pt, coordinate flip, number formatting
 │   ├── escape.ts           # Text escaping and symbol mapping
@@ -106,7 +114,7 @@ src/
 ├── persistence/            # schema.ts (save format), autosave.ts (recovery)
 ├── export/                 # svg.ts, raster.ts, pdf.ts, file.ts
 ├── hooks/useKeyboardShortcuts.ts
-└── tests/                  # 1364 tests, including latexLint.ts and import fixtures
+└── tests/                  # 1710 tests, including latexLint.ts and import fixtures
 ```
 
 Dependencies point one way: `components` and `canvas` may import `model`,

@@ -12,7 +12,7 @@ export interface Hop {
 }
 
 export type Demo = 'place' | 'edit' | 'connect' | 'copy' | 'save';
-export type Illustration = 'welcome' | 'chart' | 'code' | 'inspector' | 'finish' | 'status';
+export type Illustration = 'welcome' | 'chart' | 'code' | 'inspector' | 'finish' | 'status' | 'templates' | 'science' | 'formula' | 'undo';
 
 export interface TourStep {
   id: string;
@@ -40,8 +40,8 @@ export const TOUR_STEPS: TourStep[] = [
     body: (
       <>
         <p>
-          Draw a flowchart or a chart on the <b>right</b>, and FlowTikZ writes the matching{' '}
-          <b>LaTeX code</b> for you on the <b>left</b>, ready to paste into Overleaf.
+          Draw a flowchart, a chart, an equation, a circuit or a molecule on the <b>right</b>, and FlowTikZ
+          writes the matching <b>LaTeX code</b> for you on the <b>left</b>, ready to paste into Overleaf.
         </p>
         <p>
           This short tour points at each part of the screen and shows what it does. Use{' '}
@@ -83,7 +83,8 @@ export const TOUR_STEPS: TourStep[] = [
           to move it; drag its square corner handles to resize.
         </p>
         <p className="tip">
-          Zoom with <b>Ctrl + mouse wheel</b>. Hold <b>Alt</b> and drag to move around.
+          Zoom the drawing with <b>Ctrl + mouse wheel</b> (or the <kbd>+</kbd> <kbd>−</kbd> keys). Hold{' '}
+          <b>Space</b> or <b>Alt</b> and drag to move around.
         </p>
       </>
     ),
@@ -133,11 +134,130 @@ export const TOUR_STEPS: TourStep[] = [
     ),
   },
   {
+    id: 'templates',
+    target: '[data-tour="templates"]',
+    side: ['bottom'],
+    illus: 'templates',
+    title: 'Templates: start in seconds',
+    body: (
+      <>
+        <p>
+          Don’t want to start from a blank page? <b>Templates</b> has ready-made pieces you can drop in with one
+          click: <b>flowcharts</b> (if/else, loops, login, binary search…), <b>maths formulas</b> (quadratic
+          formula, derivatives, statistics, matrices…), <b>physics</b> laws, circuits and force diagrams, and{' '}
+          <b>chemistry</b> reactions, molecules and formulas.
+        </p>
+        <p className="tip">
+          Type in the search box to find one fast. Everything you insert stays fully editable, and{' '}
+          <kbd>Ctrl</kbd>+<kbd>Z</kbd> removes it again.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'science',
+    target: '[data-tour="science"]',
+    side: ['bottom'],
+    illus: 'science',
+    title: 'Maths, physics and chemistry',
+    body: (
+      <p>
+        These three buttons open the science tools. Each one makes a real object on the canvas with real LaTeX
+        behind it, and you can <b>double-click</b> it later to change it.
+      </p>
+    ),
+    hops: [
+      { selector: '[data-action="math"]', label: 'Math', desc: 'The formula editor: fractions, roots, sums, matrices and 230+ symbols.' },
+      { selector: '[data-action="physics"]', label: 'Physics', desc: 'Circuit parts, physics diagram parts, physics symbols and templates.' },
+      { selector: '[data-action="chemistry"]', label: 'Chem', desc: 'Chemical formulas, reactions with a balance check, and molecules.' },
+    ],
+  },
+  {
+    id: 'formula',
+    side: ['center'],
+    illus: 'formula',
+    title: 'The formula editor (Math)',
+    body: (
+      <>
+        <p>
+          Build an equation from <b>boxes</b>: pick a structure (fraction, square root, power, integral, sum,
+          limit, matrix, cases…) and type into its empty boxes. The preview at the top shows the finished
+          formula as you go.
+        </p>
+        <ul className="tour-list">
+          <li>Type <kbd>^</kbd> for a superscript and <kbd>_</kbd> for a subscript.</li>
+          <li>The <b>symbol library</b> has Greek letters, operators, arrows, sets and physics constants — search it by name, e.g. “integral” or “ohm”.</li>
+          <li><b>LaTeX</b> mode lets experts type the code directly; <b>Colour part</b> colours a piece of it.</li>
+          <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> undo and redo inside the editor; <kbd>Ctrl</kbd>+<kbd>Enter</kbd> inserts.</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: 'physics-menu',
+    target: '[data-tour="physics-menu"]',
+    extra: ['[data-tour="physics-menu"] .menu'],
+    menu: 'physics',
+    side: ['bottom', 'right'],
+    title: 'The Physics menu',
+    body: <p>Everything for physics diagrams and equations.</p>,
+    hops: [
+      { selector: '[data-action="physics-circuit"]', label: 'Circuit components', desc: 'Shows resistors, batteries, diodes, transistors… in the left panel. Drag them in and wire their terminals.' },
+      { selector: '[data-action="physics-parts"]', label: 'Physics diagram parts', desc: 'Forces, blocks, springs, pulleys, lenses, charges and fields.' },
+      { selector: '[data-action="physics-symbols"]', label: 'Physics symbols and equations', desc: 'The formula editor with the physics library: F, E, λ, ħ, units and constants.' },
+      { selector: '[data-action="physics-templates"]', label: 'Physics templates', desc: "Ready-made laws (Newton, Ohm, Maxwell…), circuits and force diagrams." },
+    ],
+  },
+  {
+    id: 'chem-menu',
+    target: '[data-tour="chem-menu"]',
+    extra: ['[data-tour="chem-menu"] .menu'],
+    menu: 'chemistry',
+    side: ['bottom', 'right'],
+    title: 'The Chemistry menu',
+    body: <p>Formulas, reactions and molecule drawings, all producing real LaTeX (mhchem and chemfig).</p>,
+    hops: [
+      { selector: '[data-action="chem-formula"]', label: 'Chemical formula', desc: 'Type H2SO4 or Fe^3+ — numbers become subscripts automatically. Element buttons included.' },
+      { selector: '[data-action="chem-reaction"]', label: 'Reaction', desc: 'Reactants, products, arrows, catalysts and conditions, with a “balanced?” check.' },
+      { selector: '[data-action="chem-molecule"]', label: 'Molecule structure', desc: 'Draw atoms and bonds, or start from water, benzene, ethanol and more.' },
+      { selector: '[data-action="chem-templates"]', label: 'Chemistry templates', desc: 'Photosynthesis, Haber process, neutralisation, pH and more, ready to insert.' },
+    ],
+  },
+  {
+    id: 'symbol-sets',
+    target: '.palette-domains',
+    side: ['right'],
+    title: 'Three sets of symbols',
+    body: (
+      <>
+        <p>
+          The left panel switches between <b>Flow</b> (flowchart symbols), <b>Circuit</b> (electrical
+          components) and <b>Physics</b> (diagram parts). Drag a part onto the canvas, or click it and then
+          click the canvas.
+        </p>
+        <p className="tip">
+          Circuit parts have round <b>terminals</b>: drag from one terminal to another to draw a wire. Press{' '}
+          <kbd>R</kbd> to turn a selected part by 90°.
+        </p>
+      </>
+    ),
+  },
+  {
     id: 'history',
     target: '[data-tour="history"]',
     side: ['bottom'],
     title: 'Made a mistake? Undo it',
-    body: <p>Nothing you do is permanent. Step backwards and forwards through your changes.</p>,
+    illus: 'undo',
+    body: (
+      <>
+        <p>Nothing you do is permanent. Step backwards and forwards through your changes.</p>
+        <p className="tip">
+          <kbd>Ctrl</kbd>+<kbd>Z</kbd> and <kbd>Ctrl</kbd>+<kbd>Y</kbd> work <b>everywhere</b>: on the canvas,
+          in the property panel, while typing in a shape, and inside the formula, chemistry, molecule and chart
+          editors.
+        </p>
+      </>
+    ),
     hops: [
       { selector: '[data-tour="history"] .btn:nth-child(1)', label: 'Undo', desc: 'Take back the last change (Ctrl+Z).' },
       { selector: '[data-tour="history"] .btn:nth-child(2)', label: 'Redo', desc: 'Bring it back again (Ctrl+Y).' },
@@ -150,7 +270,15 @@ export const TOUR_STEPS: TourStep[] = [
     menu: 'view',
     side: ['bottom'],
     title: 'Zoom and view',
-    body: <p>Get closer, step back, or fit everything on screen.</p>,
+    body: (
+      <>
+        <p>Get closer to the drawing, step back, or fit everything on screen.</p>
+        <p className="tip">
+          These buttons zoom only the <b>drawing</b>. <kbd>Ctrl</kbd>+<kbd>+</kbd> and <kbd>Ctrl</kbd>+<kbd>−</kbd>{' '}
+          still zoom the <b>whole page</b>, like on any website — handy if the text looks too small.
+        </p>
+      </>
+    ),
     hops: [
       { selector: '[data-tour="view"] [aria-label="Zoom out"]', label: '−  Zoom out', desc: 'See more of the diagram.' },
       { selector: '[data-tour="view"] .zoom-readout', label: '100%', desc: 'Shows the zoom. Click it to reset.' },
@@ -240,8 +368,36 @@ export const TOUR_STEPS: TourStep[] = [
       { selector: '[data-tour="file"] .menu button:nth-of-type(1)', label: 'New', desc: 'Start with an empty canvas.' },
       { selector: '[data-tour="file"] .menu button:nth-of-type(2)', label: 'Open', desc: 'Re-open a diagram you saved earlier.' },
       { selector: '[data-tour="file"] .menu button:nth-of-type(3)', label: 'Import diagram', desc: 'Turn a picture, SVG or draw.io file into editable shapes.' },
-      { selector: '[data-tour="file"] .menu button:nth-of-type(4)', label: 'Clear canvas', desc: 'Remove everything (red = careful). Undo still works.', tone: 'danger' },
+      { selector: '[data-tour="file"] .menu [data-action="open-project"]', label: 'Open LaTeX project (.zip)', desc: 'Bring in a whole Overleaf project and draw straight into it.' },
+      { selector: '[data-tour="file"] .menu [data-action="clear"]', label: 'Clear canvas', desc: 'Remove everything (red = careful). Undo still works.', tone: 'danger' },
     ],
+  },
+  {
+    id: 'project',
+    target: '[data-tour="file"]',
+    side: ['left', 'bottom'],
+    title: 'Draw inside your LaTeX project',
+    body: (
+      <>
+        <p>
+          Have a paper or report on Overleaf? Download it there as a zip (<b>Menu → Download → Source</b>) and choose{' '}
+          <b>File → Open LaTeX project (.zip)</b>. FlowTikZ finds the main <b>.tex</b> file, shows the document where the
+          canvas was, and lists the files and the LaTeX code on the left.
+        </p>
+        <ol className="finish-list">
+          <li>Click the place in the document where the drawing should go, then press <b>Draw here</b>.</li>
+          <li>Draw with all the usual tools and add a caption.</li>
+          <li>
+            Press <b className="c-green">Insert</b>: the text below moves down, and the packages the drawing needs are added
+            to the preamble for you. Margins and layout stay as they were.
+          </li>
+          <li>
+            <b className="c-green">Download .zip</b> gives back the whole project with your changes, ready to upload to
+            Overleaf.
+          </li>
+        </ol>
+      </>
+    ),
   },
   {
     id: 'save',
@@ -300,7 +456,7 @@ export const TOUR_STEPS: TourStep[] = [
     body: <p>Come back to this tour any time, or look up a keyboard shortcut.</p>,
     hops: [
       { selector: '[data-tour="help"] .menu button:nth-of-type(1)', label: 'Guided tour (demo)', desc: 'Replay this walkthrough.' },
-      { selector: '[data-tour="help"] .menu button:nth-of-type(2)', label: 'Help & shortcuts', desc: 'Quick start and every key. Press ? anytime.' },
+      { selector: '[data-tour="help"] .menu button:nth-of-type(2)', label: 'Help & shortcuts', desc: 'Quick start and every key, grouped by task. Press ? anytime.' },
     ],
   },
   {
@@ -312,11 +468,16 @@ export const TOUR_STEPS: TourStep[] = [
       <>
         <p>That’s everything. The quickest way to learn is to try it:</p>
         <ol className="finish-list">
-          <li>Click a symbol, then click the canvas.</li>
+          <li>
+            Click a symbol, then click the canvas — or press <b>Templates</b> and pick a ready-made one.
+          </li>
           <li>Double-click it and type.</li>
           <li>Drag a blue dot to another shape.</li>
           <li>
             Press <b className="c-green">Copy LaTeX</b> and paste into Overleaf.
+          </li>
+          <li>
+            Or open your whole LaTeX project with <b>File → Open LaTeX project</b> and draw right inside it.
           </li>
         </ol>
       </>

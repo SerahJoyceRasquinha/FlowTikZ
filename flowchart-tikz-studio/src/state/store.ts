@@ -1,3 +1,4 @@
+import type { TemplateCategory } from '../templates/library';
 import { create } from 'zustand';
 import type {
   Diagram,
@@ -96,6 +97,18 @@ export interface EditorState {
   statusMessage: string | null;
 
   /* -------- history -------- */
+  /**
+   * Set while a text, number, slider or colour field in the property panel
+   * has focus. Commits made during one such visit merge into a single undo
+   * step, so typing "Start" in a label is one Ctrl+Z, not five.
+   */
+  fieldSession: number | null;
+  /** The field session the newest undo step belongs to, if any. */
+  lastCommitSession: number | null;
+  setFieldSession: (session: number | null) => void;
+  /** True while Space is held over the board: dragging pans, as in most drawing apps. */
+  spacePan: boolean;
+  setSpacePan: (on: boolean) => void;
   snapshot: Diagram | null;
   beginInteraction: () => void;
   endInteraction: () => void;
@@ -189,6 +202,10 @@ export interface EditorState {
   /** Change a chart's spec. One undo step per call. */
   updateChart: (id: string, fn: (spec: ChartSpec) => void) => void;
 
+  /** The template library dialog, open on a category, or closed. */
+  templatesOpen: TemplateCategory | null;
+  openTemplates: (category: TemplateCategory | null) => void;
+
   /* ------------------------------------------------------------- science */
   scienceDialog: ScienceDialog | null;
   openScienceDialog: (d: ScienceDialog | null) => void;
@@ -203,6 +220,11 @@ export interface EditorState {
   ) => string;
   /** Replace an object's payload and (keeping its centre) its size. */
   updateScience: (id: string, spec: ScienceSpec, size?: { w: number; h: number }) => void;
+  /**
+   * Insert ready-made objects (a template) centred on `at`, with fresh ids,
+   * as one undo step, and select them. Returns the new ids.
+   */
+  insertFragment: (fragment: { nodes: Node[]; edges: Edge[] }, at: Point) => string[];
   /** Mirror the selected flippable objects. One undo step. */
   flipSelection: (axis: 'h' | 'v') => void;
   /** Turn the selection by a fixed angle, each about its own centre. */
@@ -286,6 +308,9 @@ export const useEditor = create<EditorState>((set, get) => ({
   boardFocused: false,
   past: [],
   future: [],
+  fieldSession: null,
+  lastCommitSession: null,
+  spacePan: false,
   clipboard: null,
   outputMode: 'standalone',
   showComments: true,
@@ -296,9 +321,15 @@ export const useEditor = create<EditorState>((set, get) => ({
   chartBuilder: null,
   chartFocus: null,
   scienceDialog: null,
+  templatesOpen: null,
   paletteDomain: 'flow',
 
   /* ------------------------------------------------------------- history */
+  setFieldSession: (session) => set({ fieldSession: session }),
+  setSpacePan: (on) => {
+    if (get().spacePan !== on) set({ spacePan: on });
+  },
+
   beginInteraction: () => {
     if (!get().snapshot) set({ snapshot: clone(get().doc) });
   },
@@ -315,21 +346,28 @@ export const useEditor = create<EditorState>((set, get) => ({
       future: [],
       snapshot: null,
       dirty: true,
+      lastCommitSession: null,
     });
   },
 
   commit: (fn) => {
-    const { doc, past } = get();
+    const { doc, past, future, fieldSession, lastCommitSession } = get();
     const before = clone(doc);
     const next = clone(doc);
     fn(next);
     normalizeOrder(next);
     if (sameDoc(before, next)) return;
+    // Further edits from the same focused field extend the step already taken.
+    if (fieldSession !== null && fieldSession === lastCommitSession && past.length > 0 && future.length === 0) {
+      set({ doc: next, dirty: true });
+      return;
+    }
     set({
       doc: next,
       past: [...past, before].slice(-HISTORY_LIMIT),
       future: [],
       dirty: true,
+      lastCommitSession: fieldSession,
     });
   },
 
@@ -353,6 +391,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       ),
       editingNodeId: null,
       dirty: true,
+      lastCommitSession: null,
     });
   },
 
@@ -367,6 +406,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       selection: get().selection.filter((id) => next.nodes[id] || next.edges[id]),
       editingNodeId: null,
       dirty: true,
+      lastCommitSession: null,
     });
   },
 
@@ -872,6 +912,7 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   /* ------------------------------------------------------------- science */
   openScienceDialog: (dialog) => set({ scienceDialog: dialog }),
+  openTemplates: (category) => set({ templatesOpen: category }),
 
   setPaletteDomain: (domain) => set({ paletteDomain: domain }),
 
@@ -902,6 +943,50 @@ export const useEditor = create<EditorState>((set, get) => ({
         n.h = size.h;
       }
     }),
+
+  insertFragment: (fragment, at) => {
+    if (fragment.nodes.length === 0) return [];
+    const minX = Math.min(...fragment.nodes.map((n) => n.x));
+    const minY = Math.min(...fragment.nodes.map((n) => n.y));
+    const maxX = Math.max(...fragment.nodes.map((n) => n.x + n.w));
+    const maxY = Math.max(...fragment.nodes.map((n) => n.y + n.h));
+    const dx = Math.round(at.x - (minX + maxX) / 2);
+    const dy = Math.round(at.y - (minY + maxY) / 2);
+    const idMap = new Map<string, string>();
+    const created: string[] = [];
+    const shift = (p: Point): Point => ({ x: p.x + dx, y: p.y + dy });
+    get().commit((d) => {
+      for (const n of fragment.nodes) {
+        const id = nextId('n');
+        idMap.set(n.id, id);
+        const copy = clone(n);
+        copy.id = id;
+        copy.groupId = undefined;
+        copy.x += dx;
+        copy.y += dy;
+        d.nodes[id] = copy;
+        d.order.push(id);
+        created.push(id);
+      }
+      for (const e of fragment.edges) {
+        const copy = clone(e);
+        const id = nextId('e');
+        copy.id = id;
+        if (copy.source.nodeId) copy.source.nodeId = idMap.get(copy.source.nodeId);
+        if (copy.target.nodeId) copy.target.nodeId = idMap.get(copy.target.nodeId);
+        if (copy.source.point) copy.source.point = shift(copy.source.point);
+        if (copy.target.point) copy.target.point = shift(copy.target.point);
+        copy.waypoints = copy.waypoints.map(shift);
+        if (!copy.source.nodeId && !copy.source.point) continue;
+        if (!copy.target.nodeId && !copy.target.point) continue;
+        d.edges[id] = copy;
+        d.order.push(id);
+        created.push(id);
+      }
+    });
+    set({ selection: created, tool: 'select', pendingShape: null });
+    return created;
+  },
 
   flipSelection: (axis) => {
     const { selection } = get();

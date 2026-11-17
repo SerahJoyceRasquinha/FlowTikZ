@@ -8,6 +8,7 @@ export function EmptyState() {
   const armShape = useEditor((s) => s.armShape);
   const openChartBuilder = useEditor((s) => s.openChartBuilder);
   const startTour = useTour((t) => t.start);
+  const openTemplates = useEditor((s) => s.openTemplates);
   return (
     <div className="empty-state">
       <div className="empty-card">
@@ -42,6 +43,10 @@ export function EmptyState() {
           </button>
         </div>
         <div className="empty-links">
+          <button className="link" onClick={() => openTemplates('flow')} data-action="empty-templates">
+            <Icon name="templates" size={15} />
+            Start from a template
+          </button>
           <button className="link" onClick={() => requestImportPicker()}>
             <Icon name="image" size={15} />
             Import a picture or draw.io file

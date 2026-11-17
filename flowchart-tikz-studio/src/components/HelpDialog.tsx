@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { SHORTCUTS } from '../hooks/useKeyboardShortcuts';
+import { SHORTCUTS, type ShortcutRow } from '../hooks/useKeyboardShortcuts';
+
+const SHORTCUT_GROUPS: ShortcutRow['group'][] = ['Editing', 'Tools', 'Canvas & view', 'Files', 'In the editors', 'Browser'];
 import { Icon } from './Icon';
 
 interface Props {
@@ -69,10 +71,15 @@ export function HelpDialog({ onClose, onStartTour }: Props) {
               <b>Values</b>, <b>Legend</b> and <b>Filters</b>. Press <b>Insert chart</b>.
             </li>
             <li>
-              <b>Maths, physics, chemistry:</b> the <b>Σ</b>, atom and flask buttons open the
+              <b>Maths, physics, chemistry:</b> the <b>Math</b>, <b>Physics</b> and <b>Chem</b> buttons open the
               formula editor, the circuit and physics parts (in the left panel) and the chemistry
               editors. Drag a circuit part onto the canvas and drag between its round terminals to
               wire it. Double-click anything you inserted to edit it again.
+            </li>
+            <li>
+              <b>Templates:</b> press <b>Templates</b> in the toolbar for ready-made flowcharts,
+              formulas (algebra, calculus, statistics…), physics laws and circuits, and chemical
+              reactions and molecules. Pick one and press <b>Insert</b>; everything stays editable.
             </li>
             <li>
               The LaTeX on the left updates as you work. Press <b>Copy LaTeX</b> and paste it into
@@ -82,15 +89,44 @@ export function HelpDialog({ onClose, onStartTour }: Props) {
           </ol>
         </section>
 
+        <section className="help-notes help-project" aria-label="LaTeX projects">
+          <h3>LaTeX projects (Overleaf zips)</h3>
+          <ol>
+            <li>
+              <b>File → Open LaTeX project (.zip)</b>. The zip needs one main file with{' '}
+              <code>\documentclass</code> and <code>\begin{'{document}'}</code>; if several files could be the
+              main one, you are asked to pick.
+            </li>
+            <li>
+              Click where the drawing should go and press <b>Draw here</b> (or <kbd>Enter</kbd>). Draw, add a caption,
+              then <b>Insert</b> (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>).
+            </li>
+            <li>
+              Needed packages go into the preamble; the drawing is scaled to fit the text width, so margins never
+              change. <kbd>Ctrl</kbd>+<kbd>Z</kbd> takes it out again.
+            </li>
+            <li>
+              Click a FlowTikZ figure to edit or remove it. <b>Download .zip</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) saves
+              the whole project; <b>Copy LaTeX</b> copies the open file.
+            </li>
+          </ol>
+        </section>
+
         <h3 className="help-subhead">Keyboard shortcuts</h3>
-        <div className="shortcut-grid">
-          {SHORTCUTS.map((s) => (
-            <div key={s.keys} className="shortcut">
-              <kbd>{s.keys}</kbd>
-              <span>{s.description}</span>
+        {SHORTCUT_GROUPS.map((group) => (
+          <section key={group} className="shortcut-section" aria-label={`${group} shortcuts`}>
+            <h4 className="shortcut-group">{group}</h4>
+            <div className="shortcut-grid">
+              {SHORTCUTS.filter((s) => s.group === group).map((s) => (
+                <div key={s.keys} className="shortcut">
+                  <kbd>{s.keys}</kbd>
+                  <span>{s.description}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </section>
+        ))}
+        <p className="note">On a Mac use <kbd>Cmd</kbd> wherever this list says Ctrl.</p>
 
         <section className="help-notes">
           <h3>Handles on a shape</h3>

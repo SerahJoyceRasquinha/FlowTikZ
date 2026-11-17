@@ -35,11 +35,12 @@ import type { MathSpec } from '../../science/types';
 import { DEFAULT_FORMULA_FONT, sizeForFont, viewCentre } from '../../science/editing';
 import { effectiveFontSize } from '../../latex/science';
 import { copyToClipboard } from '../../export/file';
+import { handleUndoKeys, useUndoable } from '../../hooks/undo';
 
 /* --------------------------------------------------------- structure editor */
 
 interface EditCtx {
-  onChange: (path: RowPath, node: number, value: string) => void;
+  onChange: (path: RowPath, node: number, value: string, caret: Caret) => void;
   onCaret: (c: Caret) => void;
   onKey: (e: React.KeyboardEvent<HTMLInputElement>, c: Caret) => void;
   onResize: (path: RowPath, node: number, drows: number, dcols: number) => void;
@@ -72,8 +73,9 @@ function TextBox({ path, node, value, label, required, ctx }: {
       spellCheck={false}
       autoComplete="off"
       onChange={(e) => {
-        ctx.onChange(path, node, e.target.value);
-        ctx.onCaret(caretOf(e.target));
+        const c = caretOf(e.target);
+        ctx.onChange(path, node, e.target.value, c);
+        ctx.onCaret(c);
       }}
       onFocus={(e) => ctx.onCaret(caretOf(e.target))}
       onSelect={(e) => ctx.onCaret(caretOf(e.target as HTMLInputElement))}
@@ -222,14 +224,20 @@ function StructEditor({ st, path, node, ctx }: { st: MStruct; path: RowPath; nod
 
 /* ------------------------------------------------------------- the dialog */
 
-interface Snapshot {
+/** Everything the dialog can undo: the boxes, the LaTeX text and the style. */
+interface Draft {
   root: MRow;
+  source: string;
+  display: boolean;
+  /** Where the caret was when this state was made, so undo puts it back. */
   caret: Caret;
+  /** Caret offset in the LaTeX text box, for the same reason. */
+  sourceCaret?: number;
 }
 
 const START: Caret = { path: [], node: 0, offset: 0 };
 const blankRoot = (): MRow => [{ t: 'text', v: '' }];
-const HISTORY = 100;
+const HISTORY = 150;
 
 function moveFocus(from: HTMLElement, dir: 1 | -1, scope: HTMLElement | null): boolean {
   if (!scope) return false;
@@ -252,20 +260,26 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
   const existing = node?.science?.type === 'math' ? node.science : null;
 
   const [mode, setMode] = useState<'visual' | 'latex'>('visual');
-  const [root, setRoot] = useState<MRow>(() => (existing ? parseTex(existing.latex) : blankRoot()));
-  const [source, setSource] = useState(existing?.latex ?? '');
-  const [display, setDisplay] = useState(existing?.display ?? true);
+  const draft = useUndoable<Draft>(
+    () => ({
+      root: existing ? parseTex(existing.latex) : blankRoot(),
+      source: existing?.latex ?? '',
+      display: existing?.display ?? true,
+      caret: START,
+    }),
+    { limit: HISTORY },
+  );
+  const { root, source, display } = draft.value;
   const [lib, setLib] = useState<'math' | 'physics'>(library ?? 'math');
   const [colour, setColour] = useState('#dc2626');
-  const [past, setPast] = useState<Snapshot[]>([]);
-  const [future, setFuture] = useState<Snapshot[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
   const caretRef = useRef<Caret>(START);
   const pendingFocus = useRef<Caret | null>(START);
+  /* Caret to restore in the LaTeX text box after an undo or an insert. */
+  const pendingSourceCaret = useRef<number | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const { ref: focusRef, onTab } = useDialogFocus();
-  const lastTyped = useRef(0);
 
   /* What the formula currently is, in the active mode. */
   const latex = useMemo(() => (mode === 'visual' ? rowToTex(root).trim() : unicodeToTex(source).trim()), [mode, root, source]);
@@ -280,7 +294,29 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
       ? `${empties} box${empties > 1 ? 'es are' : ' is'} still empty.`
       : (validateTex(latex) ?? (finalRender && !finalRender.ok ? finalRender.error ?? 'This is not valid LaTeX.' : null));
 
+  /*
+   * After an undo or redo, aim the caret at where it was in the restored
+   * state. Declared before the focus effect below so that effect places it
+   * in the same commit.
+   */
+  const historyMove = useRef(false);
   useLayoutEffect(() => {
+    if (!historyMove.current) return;
+    historyMove.current = false;
+    const d = draft.value;
+    if (mode === 'visual') pendingFocus.current = d.caret ?? START;
+    else pendingSourceCaret.current = d.sourceCaret ?? d.source.length;
+  }, [draft.value, mode]);
+
+  useLayoutEffect(() => {
+    const at = pendingSourceCaret.current;
+    if (at !== null && mode === 'latex' && textareaRef.current) {
+      pendingSourceCaret.current = null;
+      const el = textareaRef.current;
+      el.focus();
+      const pos = Math.min(at, el.value.length);
+      el.setSelectionRange(pos, pos);
+    }
     const target = pendingFocus.current;
     if (!target || mode !== 'visual') return;
     pendingFocus.current = null;
@@ -292,36 +328,30 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
     }
   });
 
-  const pushHistory = useCallback(
-    (coalesce = false) => {
-      const now = Date.now();
-      if (coalesce && now - lastTyped.current < 600) {
-        lastTyped.current = now;
-        return;
-      }
-      lastTyped.current = coalesce ? now : 0;
-      setPast((p) => [...p, { root, caret: caretRef.current }].slice(-HISTORY));
-      setFuture([]);
-    },
-    [root],
-  );
-
+  const { set: setDraft } = draft;
+  /** One undoable structural change in the visual editor. */
   const apply = useCallback(
     (result: { root: MRow; caret: Caret }) => {
-      pushHistory();
-      setRoot(editable(result.root));
+      setDraft((d) => ({ ...d, root: editable(result.root), caret: result.caret }));
       pendingFocus.current = result.caret;
       setNotice(null);
     },
-    [pushHistory],
+    [setDraft],
   );
+
+  /** Change the LaTeX text; typing in a burst is one undo step. */
+  const setSource = (next: string, caret?: number, coalesce?: string) => {
+    setDraft((d) => ({ ...d, source: next, sourceCaret: caret }), coalesce ? { coalesce } : undefined);
+  };
 
   const insertStruct = (t: MStruct) => {
     if (mode === 'visual') {
       apply(insertStructure(root, caretRef.current, t));
     } else {
-      setSource((s) => `${s}${s && !s.endsWith(' ') ? ' ' : ''}${rowToTex([t], { placeholders: false })}`);
-      textareaRef.current?.focus();
+      const piece = rowToTex([t], { placeholders: false });
+      const next = `${source}${source && !source.endsWith(' ') ? ' ' : ''}${piece}`;
+      setSource(next, next.length);
+      pendingSourceCaret.current = next.length;
     }
   };
 
@@ -333,11 +363,8 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
       const at = el?.selectionStart ?? source.length;
       const to = el?.selectionEnd ?? source.length;
       const piece = /^\\[a-zA-Z]+$/.test(s.tex) ? `${s.tex} ` : s.tex;
-      setSource(source.slice(0, at) + piece + source.slice(to));
-      requestAnimationFrame?.(() => {
-        el?.focus();
-        el?.setSelectionRange(at + piece.length, at + piece.length);
-      });
+      setSource(source.slice(0, at) + piece + source.slice(to), at + piece.length);
+      pendingSourceCaret.current = at + piece.length;
       return;
     }
     const isSimple = /^\\[a-zA-Z]+$/.test(s.tex) && !s.tex.startsWith('\\mathrm');
@@ -361,33 +388,27 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
     }
   };
 
-  const undo = () => {
-    if (mode === 'latex') return;
-    const last = past[past.length - 1];
-    if (!last) return;
-    setFuture((f) => [{ root, caret: caretRef.current }, ...f].slice(0, HISTORY));
-    setPast((p) => p.slice(0, -1));
-    setRoot(last.root);
-    pendingFocus.current = last.caret;
+  /* Undo and redo restore the whole draft; the caret goes back with it. */
+  const doUndo = () => {
+    if (!draft.canUndo) return;
+    historyMove.current = true;
+    setNotice(null);
+    draft.undo();
   };
-
-  const redo = () => {
-    if (mode === 'latex') return;
-    const next = future[0];
-    if (!next) return;
-    setPast((p) => [...p, { root, caret: caretRef.current }].slice(-HISTORY));
-    setFuture((f) => f.slice(1));
-    setRoot(next.root);
-    pendingFocus.current = next.caret;
+  const doRedo = () => {
+    if (!draft.canRedo) return;
+    historyMove.current = true;
+    setNotice(null);
+    draft.redo();
   };
 
   const clear = () => {
     if (mode === 'visual') {
-      pushHistory();
-      setRoot(blankRoot());
+      setDraft((d) => ({ ...d, root: blankRoot(), caret: START }));
       pendingFocus.current = START;
     } else {
-      setSource('');
+      setSource('', 0);
+      pendingSourceCaret.current = 0;
     }
     setNotice(null);
   };
@@ -395,10 +416,11 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
   const switchMode = (m: 'visual' | 'latex') => {
     if (m === mode) return;
     if (m === 'latex') {
-      setSource(rowToTex(root).trim());
+      const text = rowToTex(root).trim();
+      setDraft((d) => ({ ...d, source: text, sourceCaret: text.length }));
+      pendingSourceCaret.current = text.length;
     } else {
-      pushHistory();
-      setRoot(parseTex(source));
+      setDraft((d) => ({ ...d, root: parseTex(source), caret: START }));
       pendingFocus.current = START;
     }
     setMode(m);
@@ -423,17 +445,15 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
   };
 
   const ctx: EditCtx = {
-    onChange: (path, n, value) => {
-      pushHistory(true);
-      setRoot((r) => setText(r, path, n, value));
+    onChange: (path, n, value, caret) => {
+      setDraft((d) => ({ ...d, root: setText(d.root, path, n, value), caret }), { coalesce: `type:${key(path, n)}` });
       setNotice(null);
     },
     onCaret: (c) => {
       caretRef.current = c;
     },
     onResize: (path, n, dr, dc) => {
-      pushHistory();
-      setRoot((r) => resizeTable(r, path, n, dr, dc));
+      setDraft((d) => ({ ...d, root: resizeTable(d.root, path, n, dr, dc) }));
     },
     onKey: (e, c) => {
       const el = e.target as HTMLInputElement;
@@ -454,13 +474,8 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
         if (moveFocus(el, 1, editorRef.current)) e.preventDefault();
       } else if (e.key === 'ArrowLeft' && noSel && c.offset === 0) {
         if (moveFocus(el, -1, editorRef.current)) e.preventDefault();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) redo();
-        else undo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        redo();
+      } else if (handleUndoKeys(e, doUndo, doRedo)) {
+        /* handled: the draft's own history */
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         commit();
@@ -492,6 +507,8 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
         // Capture: inner fields stop propagation, and Esc must work from any of them.
         onKeyDownCapture={(e) => {
           if (e.key === 'Escape') close(null);
+          // Ctrl+Z / Ctrl+Y anywhere in the dialog step through its own history.
+          else handleUndoKeys(e, doUndo, doRedo);
         }}
         onKeyDown={(e) => {
           e.stopPropagation();
@@ -543,7 +560,7 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
             spellCheck={false}
             aria-label="LaTeX source"
             placeholder="\frac{a}{b} + \sqrt{x}"
-            onChange={(e) => setSource(e.target.value)}
+            onChange={(e) => setSource(e.target.value, e.target.selectionStart ?? e.target.value.length, 'latex-typing')}
             onKeyDown={(e) => {
               e.stopPropagation();
               if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') commit();
@@ -553,12 +570,12 @@ export function FormulaEditor({ nodeId, library }: { nodeId?: string; library?: 
         )}
 
         <div className="sci-actions">
-          <button className="btn tiny" onClick={undo} disabled={mode === 'latex' || past.length === 0} title="Undo (Ctrl+Z)"><Icon name="undo" size={15} />Undo</button>
-          <button className="btn tiny" onClick={redo} disabled={mode === 'latex' || future.length === 0} title="Redo (Ctrl+Y)"><Icon name="redo" size={15} />Redo</button>
+          <button className="btn tiny" onClick={doUndo} disabled={!draft.canUndo} title="Undo (Ctrl+Z)" data-action="formula-undo"><Icon name="undo" size={15} />Undo</button>
+          <button className="btn tiny" onClick={doRedo} disabled={!draft.canRedo} title="Redo (Ctrl+Y or Ctrl+Shift+Z)" data-action="formula-redo"><Icon name="redo" size={15} />Redo</button>
           <button className="btn tiny" onClick={clear} title="Empty the formula"><Icon name="eraser" size={15} />Clear</button>
           <span className="divider-v" />
           <label className="checkline" title="Display style sets limits above and below and enlarges fractions">
-            <input type="checkbox" checked={display} onChange={(e) => setDisplay(e.target.checked)} />
+            <input type="checkbox" checked={display} onChange={(e) => setDraft((d) => ({ ...d, display: e.target.checked }))} />
             Display style
           </label>
           <span className="divider-v" />

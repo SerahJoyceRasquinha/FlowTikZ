@@ -200,64 +200,87 @@ describe('shape placement is palette-only', () => {
 describe('zoom shortcuts', () => {
   const zoom = () => useEditor.getState().view.zoom;
 
-  it('zooms in with Ctrl + "=", Ctrl + "+" (shifted) and the numpad', () => {
+  /** Dispatch a key on an element and report whether the app claimed it. */
+  function press(target: EventTarget, k: string, init: KeyboardEventInit = {}): boolean {
+    let prevented = false;
+    act(() => {
+      const ev = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init });
+      target.dispatchEvent(ev);
+      prevented = ev.defaultPrevented;
+    });
+    return prevented;
+  }
+
+  it('leaves Ctrl + "+", "-", "0" to the browser, which zooms the whole page', () => {
     render();
-    key('=', { ctrlKey: true, code: 'Equal' } as KeyboardEventInit);
-    expect(zoom()).toBeCloseTo(1.2);
-    key('+', { ctrlKey: true, shiftKey: true, code: 'Equal' } as KeyboardEventInit);
-    expect(zoom()).toBeCloseTo(1.44);
-    key('+', { ctrlKey: true, code: 'NumpadAdd' } as KeyboardEventInit);
-    expect(zoom()).toBeCloseTo(1.728);
+    const chords: [string, KeyboardEventInit][] = [
+      ['=', { ctrlKey: true, code: 'Equal' }],
+      ['+', { ctrlKey: true, shiftKey: true, code: 'Equal' }],
+      ['+', { ctrlKey: true, code: 'NumpadAdd' }],
+      ['-', { ctrlKey: true, code: 'Minus' }],
+      ['-', { ctrlKey: true, code: 'NumpadSubtract' }],
+      ['0', { ctrlKey: true, code: 'Digit0' }],
+      ['=', { metaKey: true, code: 'Equal' }],
+      ['Unidentified', { ctrlKey: true, code: 'Equal' }],
+    ];
+    for (const [k, init] of chords) {
+      expect(press(window, k, init), `${k} ${JSON.stringify(init)}`).toBe(false);
+    }
+    expect(zoom()).toBe(1);
   });
 
-  it('zooms out with Ctrl + "-", Ctrl + "_" and the numpad, and resets with Ctrl + 0', () => {
+  it('leaves Ctrl + 1 (switch to the first browser tab) alone too', () => {
     render();
-    key('-', { ctrlKey: true, code: 'Minus' } as KeyboardEventInit);
-    expect(zoom()).toBeCloseTo(1 / 1.2);
-    key('_', { ctrlKey: true, shiftKey: true, code: 'Minus' } as KeyboardEventInit);
-    key('-', { ctrlKey: true, code: 'NumpadSubtract' } as KeyboardEventInit);
-    expect(zoom()).toBeCloseTo(1 / 1.728);
-    key('0', { ctrlKey: true, code: 'Digit0' } as KeyboardEventInit);
-    expect(zoom()).toBeCloseTo(1);
+    expect(press(window, '1', { ctrlKey: true, code: 'Digit1' })).toBe(false);
   });
 
-  it('works by key code alone, for layouts where "+" is not on the "=" key', () => {
-    render();
-    key('Unidentified', { ctrlKey: true, code: 'Equal' } as KeyboardEventInit);
-    expect(zoom()).toBeCloseTo(1.2);
-  });
-
-  it('works with Cmd on a Mac', () => {
-    render();
-    key('=', { metaKey: true, code: 'Equal' } as KeyboardEventInit);
-    expect(zoom()).toBeCloseTo(1.2);
-  });
-
-  it('still zooms the drawing while a text field has focus, instead of the browser page', () => {
+  it('does not claim page zoom from a text field or the property panel either', () => {
     render();
     const input = container.querySelector('.palette-head input') as HTMLInputElement;
     input.focus();
-    let prevented = false;
-    act(() => {
-      const ev = new KeyboardEvent('keydown', { key: '=', code: 'Equal', ctrlKey: true, bubbles: true, cancelable: true });
-      input.dispatchEvent(ev);
-      prevented = ev.defaultPrevented;
-    });
-    expect(prevented).toBe(true);
-    expect(zoom()).toBeCloseTo(1.2);
-  });
-
-  it('is not swallowed by a panel that stops key propagation', () => {
-    render();
+    expect(press(input, '=', { ctrlKey: true, code: 'Equal' })).toBe(false);
     const id = addShape('process', { x: 200, y: 200 });
     act(() => useEditor.getState().setSelection([id]));
     const textarea = container.querySelector('.inspector textarea') as HTMLTextAreaElement;
-    expect(textarea).toBeTruthy();
     textarea.focus();
-    act(() => {
-      textarea.dispatchEvent(new KeyboardEvent('keydown', { key: '-', code: 'Minus', ctrlKey: true, bubbles: true, cancelable: true }));
-    });
-    expect(zoom()).toBeCloseTo(1 / 1.2);
+    expect(press(textarea, '-', { ctrlKey: true, code: 'Minus' })).toBe(false);
+    expect(zoom()).toBe(1);
+  });
+
+  it('zooms the drawing with + / - while the board has focus', () => {
+    render();
+    act(() => shell().focus());
+    expect(press(shell(), '=', { code: 'Equal' })).toBe(true);
+    expect(zoom()).toBeCloseTo(1.2);
+    press(shell(), '+', { shiftKey: true, code: 'Equal' });
+    expect(zoom()).toBeCloseTo(1.44);
+    press(shell(), '+', { code: 'NumpadAdd' });
+    expect(zoom()).toBeCloseTo(1.728);
+    press(shell(), '-', { code: 'Minus' });
+    press(shell(), '-', { code: 'NumpadSubtract' });
+    expect(zoom()).toBeCloseTo(1.2);
+  });
+
+  it('Shift + 0 returns the drawing to 100% and Shift + 1 fits it', () => {
+    render();
+    act(() => shell().focus());
+    press(shell(), '=', { code: 'Equal' });
+    press(shell(), ')', { shiftKey: true, code: 'Digit0' });
+    expect(zoom()).toBeCloseTo(1);
+    addShape('process', { x: 2000, y: 1500 });
+    const board = shell();
+    vi.spyOn(board, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 900, bottom: 640, width: 900, height: 640, toJSON: () => ({}) } as DOMRect);
+    press(shell(), '!', { shiftKey: true, code: 'Digit1' });
+    expect(zoom()).not.toBeCloseTo(1);
+  });
+
+  it('types + and - into text fields instead of zooming', () => {
+    render();
+    const input = container.querySelector('.palette-head input') as HTMLInputElement;
+    input.focus();
+    expect(press(input, '+', { shiftKey: true, code: 'Equal' })).toBe(false);
+    expect(press(input, '-', { code: 'Minus' })).toBe(false);
+    expect(zoom()).toBe(1);
   });
 
   it('keeps the middle of the board still while zooming', () => {
@@ -266,7 +289,8 @@ describe('zoom shortcuts', () => {
     // jsdom has no layout; give the board a size the way a browser would.
     const board = shell();
     vi.spyOn(board, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 900, bottom: 640, width: 900, height: 640, toJSON: () => ({}) } as DOMRect);
-    key('=', { ctrlKey: true, code: 'Equal' } as KeyboardEventInit);
+    act(() => board.focus());
+    press(board, '=', { code: 'Equal' });
     const v = useEditor.getState().view;
     const cx = (450 - v.panX) / v.zoom;
     const cy = (320 - v.panY) / v.zoom;

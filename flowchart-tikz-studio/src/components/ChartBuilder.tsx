@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditor } from '../state/store';
+import { Icon } from './Icon';
+import { handleUndoKeys, useUndoable } from '../hooks/undo';
 import type { ChartSpec, ChartType, ColumnType, DataTable } from '../charts/types';
 import { chartTypeLabel } from '../charts/types';
 import {
@@ -46,6 +48,19 @@ function carryOver(prev: ChartSpec, table: DataTable): ChartSpec {
   return adaptSpecToType(keep, prev.type);
 }
 
+const fieldIds = new WeakMap<Element, number>();
+let fieldSerial = 0;
+/** A stable id per text box, so typing in one box coalesces with itself only. */
+function fieldKey(el: Element | null): number {
+  if (!el) return 0;
+  let id = fieldIds.get(el);
+  if (!id) {
+    id = ++fieldSerial;
+    fieldIds.set(el, id);
+  }
+  return id;
+}
+
 export function ChartBuilder() {
   const builder = useEditor((s) => s.chartBuilder);
   const open = useEditor((s) => s.openChartBuilder);
@@ -54,7 +69,16 @@ export function ChartBuilder() {
 
   const [step, setStep] = useState<'data' | 'build'>('data');
   const [table, setTable] = useState<DataTable | null>(null);
-  const [spec, setSpec] = useState<ChartSpec | null>(null);
+  /* The chart being built has its own undo history while the dialog is open. */
+  const specHistory = useUndoable<ChartSpec | null>(null, { limit: 100 });
+  const spec = specHistory.value;
+  const { set: setSpecValue, reset: resetSpec } = specHistory;
+  const setSpec = (next: ChartSpec | null | ((prev: ChartSpec | null) => ChartSpec | null)) => {
+    // Typing into one text box is one undo step, not one per letter.
+    const active = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+    const typing = !!active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'color', 'file'].includes((active as HTMLInputElement).type)));
+    setSpecValue(next, typing ? { coalesce: `field:${fieldKey(active)}` } : undefined);
+  };
   const [workbook, setWorkbook] = useState<{ wb: Workbook; sheet: string } | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -75,11 +99,11 @@ export function ChartBuilder() {
     setWorkbook(null);
     if (builder.mode === 'edit' && editingNode?.chart) {
       setTable(editingNode.chart.data);
-      setSpec(editingNode.chart);
+      resetSpec(editingNode.chart);
       setStep('build');
     } else {
       setTable(null);
-      setSpec(null);
+      resetSpec(null);
       setStep('data');
     }
     setTimeout(() => dialogRef.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus(), 0);
@@ -189,6 +213,10 @@ export function ChartBuilder() {
         role="dialog"
         aria-modal="true"
         aria-label="Chart from data"
+        onKeyDownCapture={(e) => {
+          // While building, Ctrl+Z / Ctrl+Y step through the chart's own history.
+          if (step === 'build') handleUndoKeys(e, specHistory.undo, specHistory.redo);
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             e.stopPropagation();
@@ -276,6 +304,7 @@ export function ChartBuilder() {
                   id="cb-paste"
                   rows={6}
                   value={pasteText}
+                  data-native-undo=""
                   onChange={(e) => setPasteText(e.target.value)}
                   onKeyDown={(e) => e.stopPropagation()}
                   placeholder={'Product\tRegion\tSales\nLaptop\tNorth\t50000'}
@@ -415,6 +444,13 @@ export function ChartBuilder() {
               <button className="btn" onClick={() => setStep('data')}>
                 ← Change data
               </button>
+              <button className="btn icon-only" onClick={specHistory.undo} disabled={!specHistory.canUndo} title="Undo the last chart change (Ctrl+Z)" aria-label="Undo chart change" data-action="chart-undo">
+                <Icon name="undo" />
+              </button>
+              <button className="btn icon-only" onClick={specHistory.redo} disabled={!specHistory.canRedo} title="Redo (Ctrl+Y)" aria-label="Redo chart change" data-action="chart-redo">
+                <Icon name="redo" />
+              </button>
+              <span className="spacer" />
               <button className="btn success" disabled={!spec || preview?.kind === 'empty'} onClick={insert} data-action="insert-chart">
                 {builder.mode === 'edit' ? 'Apply changes' : 'Insert chart'}
               </button>

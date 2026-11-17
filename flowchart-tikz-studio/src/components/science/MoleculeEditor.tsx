@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useEditor } from '../../state/store';
 import { useDialogFocus } from './useDialogFocus';
+import { handleUndoKeys, useUndoable } from '../../hooks/undo';
 import { Icon } from '../Icon';
 import { MoleculeDrawing } from '../../canvas/ScienceView';
 import type { BondOrder, BondStereo, MolAtom, MolBond, MoleculeSpec } from '../../science/types';
@@ -57,9 +58,8 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
   const setStatus = useEditor((s) => s.setStatus);
   const existing = node?.science?.type === 'molecule' ? node.science : null;
 
-  const [mol, setMol] = useState<MoleculeSpec>(() => (existing ? clone(existing) : emptyMolecule()));
-  const [past, setPast] = useState<MoleculeSpec[]>([]);
-  const [future, setFuture] = useState<MoleculeSpec[]>([]);
+  const history = useUndoable<MoleculeSpec>(() => (existing ? clone(existing) : emptyMolecule()), { limit: 100 });
+  const mol = history.value;
   const [tool, setTool] = useState<Tool>({ kind: 'bond', order: 1, stereo: 'none' });
   const [element, setElement] = useState('C');
   const [custom, setCustom] = useState('');
@@ -69,13 +69,11 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
   const { ref: focusRef, onTab } = useDialogFocus();
   const gesture = useRef<{ type: 'bond' | 'move'; atom: string | null; start: { x: number; y: number }; moved: boolean } | null>(null);
 
+  const { set: setHistory } = history;
+  /** One undoable change; `coalesce` merges a burst of typing into one step. */
   const commit = useCallback(
-    (next: MoleculeSpec) => {
-      setPast((p) => [...p, mol].slice(-100));
-      setFuture([]);
-      setMol(next);
-    },
-    [mol],
+    (next: MoleculeSpec, coalesce?: string) => setHistory(next, coalesce ? { coalesce } : undefined),
+    [setHistory],
   );
 
   /* The sheet shows molecule coordinates directly, centred on the origin. */
@@ -223,8 +221,6 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
         if (hit) {
           setSelectedAtom(hit.id);
           gesture.current = { type: 'move', atom: hit.id, start: p, moved: false };
-          setPast((old) => [...old, mol].slice(-100));
-          setFuture([]);
         } else {
           setSelectedAtom(null);
         }
@@ -248,8 +244,13 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
     if (!g) return;
     const p = fromEvent(e);
     if (g.type === 'move' && g.atom) {
+      // The whole drag is one undo step: recorded on the first move only.
+      const first = !g.moved;
       g.moved = true;
-      setMol((m) => ({ ...m, atoms: m.atoms.map((a) => (a.id === g.atom ? { ...a, x: snapCoord(p.x), y: snapCoord(p.y) } : a)) }));
+      setHistory(
+        (m) => ({ ...m, atoms: m.atoms.map((a) => (a.id === g.atom ? { ...a, x: snapCoord(p.x), y: snapCoord(p.y) } : a)) }),
+        first ? undefined : { record: false },
+      );
     } else if (g.type === 'bond') {
       if (Math.hypot(p.x - g.start.x, p.y - g.start.y) > 0.25) g.moved = true;
       const over = atomAt(p, g.atom ?? undefined);
@@ -301,18 +302,12 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
   };
 
   const undo = () => {
-    const last = past[past.length - 1];
-    if (!last) return;
-    setFuture((f) => [mol, ...f]);
-    setPast((p) => p.slice(0, -1));
-    setMol(last);
+    history.undo();
+    setSelectedAtom(null);
   };
   const redo = () => {
-    const next = future[0];
-    if (!next) return;
-    setPast((p) => [...p, mol]);
-    setFuture((f) => f.slice(1));
-    setMol(next);
+    history.redo();
+    setSelectedAtom(null);
   };
 
   const applyTemplate = (id: string) => {
@@ -323,7 +318,8 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
   const align = () => commit({ ...mol, atoms: mol.atoms.map((a) => ({ ...a, x: snapCoord(a.x), y: snapCoord(a.y) })) });
 
   const selected = mol.atoms.find((a) => a.id === selectedAtom) ?? null;
-  const patchSelected = (patch: Partial<MolAtom>) => commit({ ...mol, atoms: mol.atoms.map((a) => (a.id === selectedAtom ? { ...a, ...patch } : a)) });
+  const patchSelected = (patch: Partial<MolAtom>, coalesce?: string) =>
+    commit({ ...mol, atoms: mol.atoms.map((a) => (a.id === selectedAtom ? { ...a, ...patch } : a)) }, coalesce);
 
   const finish = () => {
     if (mol.atoms.length === 0) return;
@@ -372,6 +368,7 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
         // Capture: inner fields stop propagation, and Esc must work from any of them.
         onKeyDownCapture={(e) => {
           if (e.key === 'Escape') close(null);
+          else handleUndoKeys(e, undo, redo);
         }}
         onKeyDown={(e) => {
           e.stopPropagation();
@@ -411,6 +408,7 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
             <input
               className="mol-custom"
               aria-label="Custom atom label"
+              data-native-undo=""
               placeholder="NH_2"
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
@@ -452,7 +450,7 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
               <div className="mol-atom-panel">
                 <h4>Selected atom</h4>
                 <label>Label
-                  <input value={selected.label} onKeyDown={(e) => e.stopPropagation()} onChange={(e) => patchSelected({ label: e.target.value })} />
+                  <input value={selected.label} onKeyDown={(e) => e.stopPropagation()} onChange={(e) => patchSelected({ label: e.target.value }, `label:${selectedAtom}`)} />
                 </label>
                 <label>Colour
                   <input type="color" value={selected.color ?? '#12161c'} onChange={(e) => patchSelected({ color: e.target.value })} />
@@ -501,8 +499,8 @@ export function MoleculeEditor({ nodeId }: { nodeId?: string }) {
         </div>
 
         <div className="sci-actions">
-          <button className="btn tiny" onClick={undo} disabled={!past.length} title="Undo"><Icon name="undo" size={15} />Undo</button>
-          <button className="btn tiny" onClick={redo} disabled={!future.length} title="Redo"><Icon name="redo" size={15} />Redo</button>
+          <button className="btn tiny" onClick={undo} disabled={!history.canUndo} title="Undo (Ctrl+Z)" data-action="molecule-undo"><Icon name="undo" size={15} />Undo</button>
+          <button className="btn tiny" onClick={redo} disabled={!history.canRedo} title="Redo (Ctrl+Y or Ctrl+Shift+Z)" data-action="molecule-redo"><Icon name="redo" size={15} />Redo</button>
           <button className="btn tiny" onClick={() => commit(emptyMolecule())} disabled={!mol.atoms.length}><Icon name="eraser" size={15} />Clear</button>
           <span className="divider-v" />
           <button className="btn tiny" onClick={() => commit(rotateMolecule(mol, 30))} disabled={!mol.atoms.length} title="Rotate 30 degrees">Rotate 30°</button>

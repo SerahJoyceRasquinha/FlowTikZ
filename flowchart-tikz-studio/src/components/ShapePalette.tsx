@@ -7,6 +7,7 @@ import { CIRCUIT_DEFS, CIRCUIT_GROUPS, CIRCUIT_BY_ID } from '../science/physics/
 import { PHYSICS_GROUPS, PHYSICS_SHAPE_DEFS } from '../science/physics/diagramShapes';
 import { SHAPE_DEFS } from '../model/shapes';
 import { SHAPE_DRAG_TYPE } from '../science/editing';
+import { useProject } from '../state/projectStore';
 
 /** Miniature of a shape, drawn with the very same outline function. */
 function ShapeThumb({ def }: { def: ShapeDef }) {
@@ -198,6 +199,12 @@ export function ShapePalette() {
                       onClick={() => armShape(pendingShape === def.id ? null : def.id)}
                       onDoubleClick={() => {
                         armShape(null);
+                        // In a LaTeX project the shape needs a drawing to go into.
+                        if (useProject.getState().project && !useProject.getState().ensureFrame()) return;
+                        if (useProject.getState().project && !document.querySelector('.canvas-svg')) {
+                          setTimeout(() => placeCentre(def.id), 60);
+                          return;
+                        }
                         placeCentre(def.id);
                       }}
                     >

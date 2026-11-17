@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useEditor } from '../../state/store';
 import { useDialogFocus } from './useDialogFocus';
 import { Icon } from '../Icon';
@@ -10,6 +10,7 @@ import { ELEMENTS, blankReaction, blankStage, blankTerm, checkBalance, reactionT
 import type { ChemSpec, ReactionArrow, ReactionSpec, ReactionTerm } from '../../science/types';
 import { DEFAULT_FORMULA_FONT, sizeForFont, viewCentre } from '../../science/editing';
 import { effectiveFontSize } from '../../latex/science';
+import { handleUndoKeys, useUndoable } from '../../hooks/undo';
 
 const ARROWS: { value: ReactionArrow; label: string }[] = [
   { value: '->', label: '→ forward' },
@@ -22,11 +23,11 @@ const ARROWS: { value: ReactionArrow; label: string }[] = [
 
 const stop = (e: React.KeyboardEvent) => e.stopPropagation();
 
-function TermRow({ term, onChange, onRemove, label }: { term: ReactionTerm; onChange: (t: ReactionTerm) => void; onRemove?: () => void; label: string }) {
+function TermRow({ term, onChange, onRemove, label }: { term: ReactionTerm; onChange: (t: ReactionTerm, coalesce?: string) => void; onRemove?: () => void; label: string }) {
   return (
     <div className="rx-term" role="group" aria-label={label}>
-      <input className="rx-coef" aria-label={`${label} coefficient`} placeholder="n" value={term.coefficient} onKeyDown={stop} onChange={(e) => onChange({ ...term, coefficient: e.target.value })} />
-      <input className="rx-formula" aria-label={`${label} formula`} placeholder="H2O" value={term.formula} spellCheck={false} onKeyDown={stop} onChange={(e) => onChange({ ...term, formula: e.target.value })} />
+      <input className="rx-coef" aria-label={`${label} coefficient`} placeholder="n" value={term.coefficient} onKeyDown={stop} onChange={(e) => onChange({ ...term, coefficient: e.target.value }, `${label}:coef`)} />
+      <input className="rx-formula" aria-label={`${label} formula`} placeholder="H2O" value={term.formula} spellCheck={false} onKeyDown={stop} onChange={(e) => onChange({ ...term, formula: e.target.value }, `${label}:formula`)} />
       <select aria-label={`${label} state`} value={term.state} onKeyDown={stop} onChange={(e) => onChange({ ...term, state: e.target.value as ReactionTerm['state'] })}>
         <option value="">–</option>
         <option value="s">(s)</option>
@@ -39,7 +40,7 @@ function TermRow({ term, onChange, onRemove, label }: { term: ReactionTerm; onCh
   );
 }
 
-function TermList({ title, terms, onChange }: { title: string; terms: ReactionTerm[]; onChange: (t: ReactionTerm[]) => void }) {
+function TermList({ title, terms, onChange }: { title: string; terms: ReactionTerm[]; onChange: (t: ReactionTerm[], coalesce?: string) => void }) {
   return (
     <div className="rx-list">
       <h4>{title}</h4>
@@ -48,7 +49,7 @@ function TermList({ title, terms, onChange }: { title: string; terms: ReactionTe
           key={i}
           term={t}
           label={`${title} ${i + 1}`}
-          onChange={(next) => onChange(terms.map((x, j) => (j === i ? next : x)))}
+          onChange={(next, coalesce) => onChange(terms.map((x, j) => (j === i ? next : x)), coalesce)}
           onRemove={terms.length > 1 ? () => onChange(terms.filter((_, j) => j !== i)) : undefined}
         />
       ))}
@@ -67,9 +68,43 @@ export function ChemEditor({ nodeId, tab: initial }: { nodeId?: string; tab?: 'f
   const existing = node?.science?.type === 'chem' ? node.science : null;
 
   const [tab, setTab] = useState<'formula' | 'reaction'>(initial ?? (existing?.reaction ? 'reaction' : 'formula'));
-  const [source, setSource] = useState(existing && !existing.reaction ? existing.source : '');
-  const [reaction, setReaction] = useState<ReactionSpec>(existing?.reaction ?? blankReaction());
+  /* Formula text and reaction share one history, so Ctrl+Z works in both tabs. */
+  const draft = useUndoable<{ source: string; reaction: ReactionSpec; caret?: number }>(() => ({
+    source: existing && !existing.reaction ? existing.source : '',
+    reaction: existing?.reaction ?? blankReaction(),
+  }));
+  const { source, reaction } = draft.value;
+  const setSource = (next: string, caret?: number, coalesce?: string) =>
+    draft.set((d) => ({ ...d, source: next, caret }), coalesce ? { coalesce } : undefined);
+  /* Typing in one field is one step; structural changes are one step each. */
+  const setReaction = (next: ReactionSpec, coalesce?: string) =>
+    draft.set((d) => ({ ...d, reaction: next }), coalesce ? { coalesce } : undefined);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const pendingCaret = useRef<number | null>(null);
+  const historyMove = useRef(false);
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (historyMove.current) {
+      historyMove.current = false;
+      if (tab === 'formula') pendingCaret.current = draft.value.caret ?? draft.value.source.length;
+    }
+    if (pendingCaret.current !== null && el) {
+      const at = Math.min(pendingCaret.current, el.value.length);
+      pendingCaret.current = null;
+      el.focus();
+      el.setSelectionRange(at, at);
+    }
+  });
+  const undo = () => {
+    if (!draft.canUndo) return;
+    historyMove.current = true;
+    draft.undo();
+  };
+  const redo = () => {
+    if (!draft.canRedo) return;
+    historyMove.current = true;
+    draft.redo();
+  };
   const { ref: focusRef, onTab } = useDialogFocus();
 
   const text = tab === 'formula' ? source.trim() : reactionToSource(reaction);
@@ -86,12 +121,9 @@ export function ChemEditor({ nodeId, tab: initial }: { nodeId?: string; tab?: 'f
     const el = inputRef.current;
     const at = el?.selectionStart ?? source.length;
     const to = el?.selectionEnd ?? source.length;
-    setSource(source.slice(0, at) + piece + source.slice(to));
     const caret = at + piece.length;
-    setTimeout(() => {
-      el?.focus();
-      el?.setSelectionRange(caret, caret);
-    }, 0);
+    setSource(source.slice(0, at) + piece + source.slice(to), caret);
+    pendingCaret.current = caret;
   };
 
   const commit = () => {
@@ -112,8 +144,8 @@ export function ChemEditor({ nodeId, tab: initial }: { nodeId?: string; tab?: 'f
     close(null);
   };
 
-  const setStage = (i: number, patch: Partial<ReactionSpec['stages'][number]>) =>
-    setReaction({ ...reaction, stages: reaction.stages.map((s, j) => (j === i ? { ...s, ...patch } : s)) });
+  const setStage = (i: number, patch: Partial<ReactionSpec['stages'][number]>, coalesce?: string) =>
+    setReaction({ ...reaction, stages: reaction.stages.map((s, j) => (j === i ? { ...s, ...patch } : s)) }, coalesce);
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close(null)}>
@@ -127,6 +159,7 @@ export function ChemEditor({ nodeId, tab: initial }: { nodeId?: string; tab?: 'f
         // Capture: inner fields stop propagation, and Esc must work from any of them.
         onKeyDownCapture={(e) => {
           if (e.key === 'Escape') close(null);
+          else handleUndoKeys(e, undo, redo);
         }}
         onKeyDown={(e) => {
           e.stopPropagation();
@@ -168,7 +201,7 @@ export function ChemEditor({ nodeId, tab: initial }: { nodeId?: string; tab?: 'f
               spellCheck={false}
               aria-label="Chemical formula"
               placeholder="H2SO4   or   SO4^2-   or   2H2 + O2 -> 2H2O"
-              onChange={(e) => setSource(e.target.value)}
+              onChange={(e) => setSource(e.target.value, e.target.selectionStart ?? e.target.value.length, 'chem-typing')}
               onKeyDown={(e) => {
                 e.stopPropagation();
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') commit();
@@ -192,7 +225,7 @@ export function ChemEditor({ nodeId, tab: initial }: { nodeId?: string; tab?: 'f
           </>
         ) : (
           <div className="rx-editor">
-            <TermList title="Reactant" terms={reaction.reactants} onChange={(reactants) => setReaction({ ...reaction, reactants })} />
+            <TermList title="Reactant" terms={reaction.reactants} onChange={(reactants, c) => setReaction({ ...reaction, reactants }, c)} />
             {reaction.stages.map((st, i) => (
               <div className="rx-stage" key={i}>
                 <div className="rx-arrow" role="group" aria-label={`Step ${i + 1} arrow`}>
@@ -200,14 +233,14 @@ export function ChemEditor({ nodeId, tab: initial }: { nodeId?: string; tab?: 'f
                   <select aria-label={`Step ${i + 1} arrow type`} value={st.arrow} onKeyDown={stop} onChange={(e) => setStage(i, { arrow: e.target.value as ReactionArrow })}>
                     {ARROWS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
                   </select>
-                  <input aria-label={`Step ${i + 1} above the arrow`} placeholder="above: catalyst, e.g. Pt" value={st.above} onKeyDown={stop} onChange={(e) => setStage(i, { above: e.target.value })} />
-                  <input aria-label={`Step ${i + 1} below the arrow`} placeholder="below: e.g. 450 °C" value={st.below} onKeyDown={stop} onChange={(e) => setStage(i, { below: e.target.value })} />
+                  <input aria-label={`Step ${i + 1} above the arrow`} placeholder="above: catalyst, e.g. Pt" value={st.above} onKeyDown={stop} onChange={(e) => setStage(i, { above: e.target.value }, `above${i}`)} />
+                  <input aria-label={`Step ${i + 1} below the arrow`} placeholder="below: e.g. 450 °C" value={st.below} onKeyDown={stop} onChange={(e) => setStage(i, { below: e.target.value }, `below${i}`)} />
                   <button type="button" className="btn tiny" title="Heat symbol above the arrow" onClick={() => setStage(i, { above: `${st.above}$\\Delta$` })}>+ Δ heat</button>
                   {reaction.stages.length > 1 && (
                     <button type="button" className="btn tiny ghost" onClick={() => setReaction({ ...reaction, stages: reaction.stages.filter((_, j) => j !== i) })}>Remove step</button>
                   )}
                 </div>
-                <TermList title={`Product (step ${i + 1})`} terms={st.products} onChange={(products) => setStage(i, { products })} />
+                <TermList title={`Product (step ${i + 1})`} terms={st.products} onChange={(products, c) => setStage(i, { products }, c)} />
               </div>
             ))}
             <div className="rx-foot">
@@ -219,6 +252,8 @@ export function ChemEditor({ nodeId, tab: initial }: { nodeId?: string; tab?: 'f
         )}
 
         <footer className="sci-footer">
+          <button className="btn tiny" onClick={undo} disabled={!draft.canUndo} title="Undo (Ctrl+Z)" data-action="chem-undo"><Icon name="undo" size={15} />Undo</button>
+          <button className="btn tiny" onClick={redo} disabled={!draft.canRedo} title="Redo (Ctrl+Y or Ctrl+Shift+Z)" data-action="chem-redo"><Icon name="redo" size={15} />Redo</button>
           <span className="note">The LaTeX uses mhchem: \ce{'{'}{text || '…'}{'}'}</span>
           <button className="btn" onClick={() => close(null)}>Cancel</button>
           <button className="btn success" onClick={commit} disabled={!!problem || !r?.ok} data-action="insert-chem">{nodeId ? 'Apply changes' : 'Insert'}</button>

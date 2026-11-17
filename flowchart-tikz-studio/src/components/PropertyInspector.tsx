@@ -714,6 +714,7 @@ export function PropertyInspector() {
       className={`inspector${nodes.length === 1 && edges.length === 0 && nodes[0].kind === 'chart' ? ' wide' : ''}`}
       aria-label="Properties"
       data-tour="inspector"
+      data-doc-bound=""
     >
       {nodes.length === 1 && edges.length === 0 && nodes[0].kind === 'chart' && nodes[0].chart && (
         <ChartPane key={nodes[0].id} node={nodes[0]} />

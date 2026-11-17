@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 /** Toolbar menus the guided tour can open to show what is inside them. */
-export type TourMenu = 'file' | 'export' | 'view' | 'help' | 'align' | 'arrange' | null;
+export type TourMenu = 'file' | 'export' | 'view' | 'help' | 'align' | 'arrange' | 'physics' | 'chemistry' | null;
 
 interface TourState {
   active: boolean;

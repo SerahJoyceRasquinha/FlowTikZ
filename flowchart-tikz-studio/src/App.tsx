@@ -23,9 +23,16 @@ import { TourPrompt } from './components/tour/TourPrompt';
 import { TooltipLayer } from './components/Tooltip';
 import { useTour } from './state/tourStore';
 import { Icon } from './components/Icon';
+import { useProject } from './state/projectStore';
+
 
 /* Editors and their symbol tables load on first use, never with the canvas. */
 const ScienceDialogs = lazy(() => import('./components/science/ScienceDialogs'));
+/* The template library (and its previews) likewise loads when first opened. */
+const ProjectPanel = lazy(() => import('./components/project/ProjectPanel').then((m) => ({ default: m.ProjectPanel })));
+const DocumentPreview = lazy(() => import('./components/project/DocumentPreview').then((m) => ({ default: m.DocumentPreview })));
+const ProjectImportDialog = lazy(() => import('./components/project/ProjectImportDialog').then((m) => ({ default: m.ProjectImportDialog })));
+const TemplateLibrary = lazy(() => import('./components/TemplateLibrary').then((m) => ({ default: m.TemplateLibrary })));
 
 export default function App() {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -38,12 +45,20 @@ export default function App() {
   const loadDocument = useEditor((s) => s.loadDocument);
   const tourActive = useTour((t) => t.active);
   const scienceOpen = useEditor((s) => s.scienceDialog !== null);
+  const templatesOpen = useEditor((s) => s.templatesOpen !== null);
+  const [templatesMounted, setTemplatesMounted] = useState(false);
+  useEffect(() => {
+    if (templatesOpen) setTemplatesMounted(true);
+  }, [templatesOpen]);
   const [scienceMounted, setScienceMounted] = useState(false);
   useEffect(() => {
     if (scienceOpen) setScienceMounted(true);
   }, [scienceOpen]);
 
   useKeyboardShortcuts({ onShowHelp: () => setHelpOpen(true), canvasSize });
+  const projectOpen = useProject((p) => p.project !== null);
+  const projectVersion = useProject((p) => p.version);
+  const projectDialogs = useProject((p) => p.importing !== null || p.pending !== null);
 
   /* The import controller fits the view once an import lands. */
   const canvasSizeRef = useRef(canvasSize);
@@ -54,7 +69,8 @@ export default function App() {
 
   /* Autosave, so a stray refresh does not lose the diagram. */
   useEffect(() => {
-    if (doc.order.length > 0) scheduleAutosave(doc);
+    // A figure being drawn inside a LaTeX project is not the saved flowchart.
+    if (doc.order.length > 0 && !useProject.getState().project) scheduleAutosave(doc);
   }, [doc]);
 
   /* Offer recovery once, on first load. */
@@ -66,13 +82,15 @@ export default function App() {
   /* Warn before losing unsaved work. */
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (!dirty) return;
+      const p = useProject.getState().project;
+      const projectDirty = !!p && useProject.getState().dirtyCount() > 0;
+      if (!dirty && !projectDirty) return;
       e.preventDefault();
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [dirty]);
+  }, [dirty, projectVersion]);
 
   const measure = useCallback(() => {
     const el = document.querySelector('.canvas-shell');
@@ -116,10 +134,10 @@ export default function App() {
    * otherwise the dialog's Close button would keep focus and swallow them.
    */
   useEffect(() => {
-    if (helpOpen || tourActive || scienceOpen) return;
+    if (helpOpen || tourActive || scienceOpen || templatesOpen) return;
     const board = document.querySelector('.canvas-shell') as HTMLElement | null;
     board?.focus?.({ preventScroll: true });
-  }, [helpOpen, tourActive, scienceOpen]);
+  }, [helpOpen, tourActive, scienceOpen, templatesOpen]);
 
   const loadExample = useCallback(() => {
     const s = useEditor.getState();
@@ -133,6 +151,8 @@ export default function App() {
     const s = useEditor.getState();
     if (s.pendingShape) s.armShape(null);
     if (s.chartBuilder) s.openChartBuilder(null);
+    if (s.templatesOpen) s.openTemplates(null);
+    if (s.scienceDialog) s.openScienceDialog(null);
     useTour.getState().start(0);
   }, []);
 
@@ -195,19 +215,33 @@ export default function App() {
 
       <SplitPane
         left={
-          <ErrorBoundary area="TikZ output">
-            <CodePanel />
+          <ErrorBoundary area={projectOpen ? 'Project' : 'TikZ output'}>
+            {projectOpen ? (
+              <Suspense fallback={null}>
+                <ProjectPanel />
+              </Suspense>
+            ) : (
+              <CodePanel />
+            )}
           </ErrorBoundary>
         }
         right={
-          <div className="editor-area">
+          <div className={`editor-area${projectOpen ? ' project-mode' : ''}`}>
             <ShapePalette />
-            <div className="canvas-wrap">
-              <ErrorBoundary area="Canvas">
-                <CanvasStage onReady={onSvgReady} />
+            {projectOpen ? (
+              <ErrorBoundary area="Document preview">
+                <Suspense fallback={<div className="tx-preview" />}>
+                  <DocumentPreview />
+                </Suspense>
               </ErrorBoundary>
-              <SelectionBar />
-            </div>
+            ) : (
+              <div className="canvas-wrap">
+                <ErrorBoundary area="Canvas">
+                  <CanvasStage onReady={onSvgReady} />
+                </ErrorBoundary>
+                <SelectionBar />
+              </div>
+            )}
             <ErrorBoundary area="Properties">
               <PropertyInspector />
             </ErrorBoundary>
@@ -219,7 +253,19 @@ export default function App() {
       <ImportProgress />
       <ImportDialog />
       <ImportReportDialog />
+      {projectDialogs && (
+        <Suspense fallback={null}>
+          <ProjectImportDialog />
+        </Suspense>
+      )}
       <ChartBuilder />
+      {templatesMounted && (
+        <ErrorBoundary area="Templates">
+          <Suspense fallback={null}>
+            <TemplateLibrary />
+          </Suspense>
+        </ErrorBoundary>
+      )}
       {scienceMounted && (
         <ErrorBoundary area="Science editor">
           <Suspense fallback={null}>

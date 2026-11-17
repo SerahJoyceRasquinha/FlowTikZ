@@ -1,7 +1,7 @@
 # Testing
 
 ```bash
-npm test          # 1364 tests
+npm test          # 1710 tests
 npm run test:watch
 npm run typecheck
 ```
@@ -19,9 +19,12 @@ TypeScript runs in `strict` mode with `noUnusedLocals` and
 | `diagram.test.ts` | 25 | Bounds (including connector geometry and the empty case), all four z-order commands, all six alignments, distribution, locked-shape immunity, deletion converting attached connectors to floating endpoints, group dissolution, and snapping to grid, to objects, and not at all |
 | `generator.test.ts` | 61 | Document structure in both modes; every shape emitting lint-clean; both emission strategies; scale, rotation, text, escaping, all fill/border/opacity/shading/shadow/radius/typography options; all routings, arrowheads and label options; colour deduplication; traceability; byte-stability across regeneration and diff-stability when one shape moves; and robustness against 200 objects, overlapping shapes, long text, invalid dimensions, unreadable colours, unknown shapes and a corrupt object |
 | `persistence.test.ts` | 29 | Save/load round trip, identical LaTeX after a round trip, envelope format, rejection of non-diagrams, defaults for sparse files, dropping connectors to missing shapes, version warnings, partial recovery; then the store: creation, undo/redo of every edit kind, drag coalescing, no-op interactions, redo invalidation, copy/paste with rewired connectors, cut, group/ungroup, lock, select-all, clear, id stability, zoom-about-a-point, fit, and id collision-avoidance after loading |
-| `shortcuts.test.ts` | 5 | Zoom chord recognition on `key` and `code` (main keyboard, Shift, numpad, a German layout, Cmd), that plain or Alt-modified keys never zoom, and that the reference list holds no shape letters, only `V` `H` `C` |
+| `shortcuts.test.ts` | 13 | Browser page-zoom chords (`Ctrl/Cmd` + `+` `=` `-` `_` `0`, numpad, German layout) recognised so the app leaves them alone; drawing zoom keys (`+` `-`, `Shift+0`, `Shift+1`) only without modifiers; undo/redo chords with Ctrl, Cmd, Shift, on Cyrillic/Greek layouts by physical key and on QWERTZ/AZERTY by printed letter; the reference list grouped, without duplicates or shape letters |
 | `hittest.test.ts` | 21 | Outline flattening and even-odd containment, the interior of every registry shape, diamond and triangle geometry against their bounding boxes, text labels and open brackets falling back to their box, rotation, the forgiveness margin not reaching the next shape, degenerate and NaN geometry, paint-order priority between overlapping shapes, and shape-over-connector priority including the margin case |
-| `interaction.test.tsx` | 70 | Drives the assembled application with real pointer and keyboard events: no letter key arms a shape (shapes come from the palette only) while the tool letters still work; zooming with Ctrl/Cmd + `=` `+` `-` `_` `0`, the numpad and key codes alone, from inside a text field, past a panel that stops propagation, about the board centre, and from the toolbar; tool keys declining while a field, the text overlay, the code search or any other control has focus, and resuming when the board takes focus back; board focus by click on a shape, on empty paper and by Tab, and that focus never enters undo; palette buttons without keyboard badges; whole-shape hover including over text, hover distinguished from selection, and a hittable interior for all 29 symbols; selection, marquee, drag coalescing to one undo step, a slow small-step drag not sticking to the grid, and guides not rewritten per frame; handles square and on the boundary while connection points are circles outside it, with a measured clearance from both the resize and rotate handles, moving correctly under resize, and thinning out on small shapes; connectors drawn with the pointer between every geometry family, snapping to the aimed-at point, the target highlight appearing before release, floating endpoints, staying attached when a shape moves, undo/redo, and surviving the source shape being deleted mid-gesture; and that the LaTeX and the exported SVG carry none of the new editor chrome; and that a deletion, a tool change, an undo or an Escape arriving mid-gesture, a locked selection, an empty export and shortcuts pressed on a blank canvas all pass without an exception or a console message |
+| `undo.ui.test.tsx` | 28 | Undo/redo everywhere through real key events: canvas (Ctrl, Cmd, Shift+Z, a Cyrillic layout, focus on a toolbar button); property-panel typing as one step undone from inside the field, separate visits as separate steps, drop-downs; the shape text box (typing first, then the canvas); the formula editor (boxes, structures, symbols, LaTeX mode, buttons, canvas history untouched, insert as one step); chemistry (element buttons, typing, reaction terms and arrows); molecules; the chart builder; plus Ctrl+C/X/V/D/A, Ctrl+A/C left to the LaTeX panel, Ctrl+O/S, Ctrl+]/[, Space-to-pan, and the grouped help |
+| `templates.test.ts` | 211 | Every one of the 190 templates builds with known shapes, unique ids and routable connectors; every formula passes the TeX guard and typesets; every reaction is read by mhchem; each category's gallery generates LaTeX with no issues and lints clean in both modes; search; inserting as one undo step with fresh ids, centred and selected; placement never overlapping existing work |
+| `templates.ui.test.tsx` | 12 | The Templates button, menus and empty-canvas link; tabs with counts and a drawn preview on every card; search with tab jumping and an empty state; Esc clearing then closing; keyboard isolation; inserting flowcharts, formulas, reactions, molecules and circuits as editable objects; one-step undo; clean LaTeX; arrow-key navigation; backdrop close |
+| `interaction.test.tsx` | 70 | Drives the assembled application with real pointer and keyboard events: no letter key arms a shape (shapes come from the palette only) while the tool letters still work; page-zoom chords (`Ctrl/Cmd` + `+` `-` `0`, `Ctrl+1`) never claimed from the board, a text field or the property panel; drawing zoom with `+` `-` `Shift+0` `Shift+1` on the board only, about the board centre, and from the toolbar; tool keys declining while a field, the text overlay, the code search or any other control has focus, and resuming when the board takes focus back; board focus by click on a shape, on empty paper and by Tab, and that focus never enters undo; palette buttons without keyboard badges; whole-shape hover including over text, hover distinguished from selection, and a hittable interior for all 29 symbols; selection, marquee, drag coalescing to one undo step, a slow small-step drag not sticking to the grid, and guides not rewritten per frame; handles square and on the boundary while connection points are circles outside it, with a measured clearance from both the resize and rotate handles, moving correctly under resize, and thinning out on small shapes; connectors drawn with the pointer between every geometry family, snapping to the aimed-at point, the target highlight appearing before release, floating endpoints, staying attached when a shape moves, undo/redo, and surviving the source shape being deleted mid-gesture; and that the LaTeX and the exported SVG carry none of the new editor chrome; and that a deletion, a tool change, an undo or an Escape arriving mid-gesture, a locked selection, an empty export and shortcuts pressed on a blank canvas all pass without an exception or a console message |
 | `compatibility.test.ts` | 9 | That the shipped example JSON still opens without warnings, still yields identical LaTeX to the committed `.tex` files in both modes, keeps every shape type, geometry, style and connection, round-trips unchanged, and that the save file gains no new fields; plus sparse and newer-than-current files, and that hit testing cannot perturb generation |
 | `app.smoke.test.tsx` | 12 | Mounts the real application in jsdom and fails on any React warning: both panels present, empty state, shape placement rendering to canvas *and* code, code regeneration on a style change, connector staying attached when a shape moves, trace highlighting, mode switching, the text overlay, all palette thumbnails, autosave to storage, 80+ objects, and a corrupt shape not blanking the canvas |
 
@@ -65,6 +68,21 @@ fixture (four raster, three SVG, three draw.io variants) was also compiled with
 `pdflatex`, and the import workflow was driven in Chromium against the built
 app and the Web Worker.
 
+### LaTeX project suites
+
+Fixtures are built by `scripts/make-project-fixtures.py` (sample projects plus
+broken and hostile zips). `scripts/make-stress-projects.py [--huge]` writes the
+large archives used for the browser stress run.
+
+| File | Tests | Covers |
+| --- | --- | --- |
+| `project.zip.test.ts` | 15 | Reading: EOCD and Zip64 records, CP437/UTF-8 names, path safety (`..`, absolute, drive letters, control characters), clutter, CRC and size checks, the zip-bomb guard, encrypted, bzip2 and data-descriptor entries, truncated archives; writing: round trips checked by Python's `zipfile`, raw copies, Zip64 past 65,535 entries |
+| `project.tex.test.ts` | 25 | Comment/verbatim masking that keeps offsets, groups and options, outline, packages and TikZ libraries, inclusions, macros, main-file detection (names, depth, standalone, subfiles, ambiguity), document parsing into source-mapped blocks across included files, page geometry for common classes and packages, numbering and `.bib` parsing |
+| `project.figure.test.ts` | 21 | Inserting with only missing packages, before `hyperref`, into a preamble file, after `\documentclass`; definitions before `\begin{document}`; exact and floating placement following the document's style; captions and unique labels; mid-line targets; CRLF and indentation; editing; removal restoring the file byte for byte |
+| `project.load.test.ts` | 11 | Loading every fixture: wrapping folder, ambiguous main, no main, no `.tex`, empty, not a zip, truncated, unsafe paths, Latin-1 + CRLF, BOM; exporting with original encodings and untouched raw copies |
+| `project.compile.test.ts` | 5 | Five projects compiled with `pdflatex` before and after a drawing is inserted: no errors or undefined commands, same text width and pages, no new overfull boxes (skipped without `pdflatex`) |
+| `project.ui.test.tsx` | 7 | Through the real UI: the File-menu input, preview replacing the canvas, click → Draw here → draw → Insert, the LaTeX tab, `Ctrl+Z`/`Ctrl+Y` on the document, removing the figure restoring the file, the main-file chooser, and the error dialog for five bad zips |
+
 ## What the DOM suites can and cannot show
 
 `interaction.test.tsx` runs in jsdom, which has layout but no rendering: it can
@@ -98,3 +116,22 @@ refactoring, and both have dedicated tests:
   lengths that crosses the wrap boundary in both directions. A regression here
   once truncated a `\node` mid-statement, which static lint caught and a
   compile would have caught too.
+
+
+## Real-browser checks
+
+Besides the jsdom suites, the release was exercised in real Google Chrome
+(Playwright) against the production build, as a user would: page-zoom chords
+reaching the browser untouched, drawing zoom keys, every template tab and
+preview, search, insert / undo / redo of templates, typing and undoing in the
+property panel, in a shape and in the formula and chemistry editors, Space-drag
+panning, the full guided tour, the help dialog, a 1280 × 720 window, and 250
+random key presses and drags followed by undoing everything — with no console
+error. The toolbar was measured to stay on one row from 1280 px to 2560 px.
+
+The LaTeX project mode was driven the same way (`e2e/proj_flow.py`, 34
+checks: open, preview, click, draw, insert, edit, remove, undo, download, copy,
+errors, main-file chooser), and a stress run opened, edited and downloaded
+projects with a 23 MB main file, 60,000 and 70,000 files, 2 GB and 4.5 GB.
+Each downloaded zip was validated with Python's `zipfile`. Figures in sample
+projects were also checked by eye in the compiled PDFs.

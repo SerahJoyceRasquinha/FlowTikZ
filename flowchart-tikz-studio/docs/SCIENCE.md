@@ -5,6 +5,12 @@ molecular structures on the same canvas as flowcharts and charts. All of them
 are ordinary objects: select, drag, snap, resize, rotate, group, align, layer,
 copy, undo and save work as they do for any shape. Each generates real LaTeX.
 
+Ready-made formulas, physics laws and circuits, force diagrams, reactions and
+molecules are one click away in **Templates** (toolbar, or the Physics and
+Chem menus). Every editor has its own undo history: `Ctrl/Cmd + Z`,
+`Ctrl/Cmd + Y` and `Ctrl/Cmd + Shift + Z` work inside it, and inserting is one
+step on the canvas.
+
 | Toolbar | Opens | LaTeX it writes |
 | --- | --- | --- |
 | **Σ Mathematics** | Formula editor | amsmath math mode |

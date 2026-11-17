@@ -19,6 +19,7 @@ import {
   physicsGallery,
   symbolGallery,
 } from '../src/science/gallery';
+import { templateGallery } from '../src/templates/gallery';
 
 const std = (d: Diagram) =>
   generateLatex(d, { mode: 'standalone', comments: true }).code;
@@ -317,4 +318,8 @@ export const fixtures = [
   { name: '16-molecules', code: std(moleculeGallery()) },
   { name: '17-mixed', code: std(mixedGallery()) },
   { name: '18-science-snippet-in-article', code: scienceInArticle() },
+  { name: '19-templates-flowcharts', code: std(templateGallery('flow')) },
+  { name: '20-templates-mathematics', code: std(templateGallery('math')) },
+  { name: '21-templates-physics', code: std(templateGallery('physics')) },
+  { name: '22-templates-chemistry', code: std(templateGallery('chem')) },
 ];

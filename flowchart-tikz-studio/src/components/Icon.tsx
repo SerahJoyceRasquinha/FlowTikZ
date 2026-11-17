@@ -174,6 +174,20 @@ const PATHS: Record<string, React.ReactNode> = {
       <rect x="8" y="14" width="7" height="5" rx="1" />
     </>
   ),
+  templates: (
+    <>
+      <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.5" />
+      <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.5" />
+      <path d="M16.75 13.5v6.5M13.5 16.75h6.5" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="10.5" cy="10.5" r="6" />
+      <path d="M15 15l5.5 5.5" />
+    </>
+  ),
   layers: (
     <>
       <path d="M12 3l9 5-9 5-9-5z" />
